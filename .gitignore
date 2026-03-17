@@ -1,5 +1,5 @@
-.dist/
-.node-modules/
+dist/
+node_modules/
 *.log
 *.tsbuildinfo
 *.env
