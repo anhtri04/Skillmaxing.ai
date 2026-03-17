@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { MESSAGE_TYPES, STORAGE_KEYS } from '../shared/constants'
 import type { ExtensionMessage } from '../shared/types'
 import { AssistantMessage } from './components/AssistantMessage'
+import { UserMessage } from './components/UserMessage'
 import { StreamingIndicator } from './components/StreamingIndicator'
+import { FollowUpInput } from './components/FollowUpInput'
 
-interface Message {
+export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
@@ -15,21 +17,50 @@ function App() {
   const [pageTitle, setPageTitle] = useState<string | null>(null)
   const [pageContent, setPageContent] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [hasExplained, setHasExplained] = useState(false)
+  const [currentTabId, setCurrentTabId] = useState<number | null>(null)
   const portRef = useRef<chrome.runtime.Port | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Get current tab ID
+  useEffect(() => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        setCurrentTabId(tabs[0].id)
+      }
+    })
+  }, [])
+
+  // Load conversation from storage when tab changes
+  useEffect(() => {
+    if (currentTabId !== null) {
+      loadConversation(currentTabId)
+    }
+  }, [currentTabId])
+
+  // Save conversation to storage when messages change
+  useEffect(() => {
+    if (currentTabId !== null && messages.length > 0) {
+      saveConversation(currentTabId, messages)
+    }
+  }, [messages, currentTabId])
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, isLoading])
 
   // Listen for messages from background script
   useEffect(() => {
-    const handler = (msg: ExtensionMessage) => {
+    const handler = (msg: ExtensionMessage & { tabId?: number }) => {
       if (msg.type === MESSAGE_TYPES.EXPLAIN_TERM) {
+        // Check if this message is for the current tab
         setPendingTerm(msg.term || null)
         setPageTitle(msg.pageTitle || null)
         setPageContent(msg.pageContent || null)
         setHasExplained(false)
-        setMessages([])
         setError(null)
       }
     }
@@ -45,7 +76,56 @@ function App() {
     }
   }, [pendingTerm, hasExplained, isLoading, messages.length, pageTitle, pageContent])
 
-  const sendExplanation = async (term: string, title: string | null, content: string | null) => {
+  const loadConversation = async (tabId: number) => {
+    try {
+      const result = await chrome.storage.session.get([`conversation-${tabId}`])
+      const savedConversation = result[`conversation-${tabId}`] as { term: string; messages: Message[]; pageTitle: string | null; pageContent: string | null } | undefined
+      
+      if (savedConversation) {
+        setPendingTerm(savedConversation.term)
+        setMessages(savedConversation.messages)
+        setPageTitle(savedConversation.pageTitle)
+        setPageContent(savedConversation.pageContent)
+        setHasExplained(true)
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error)
+    }
+  }
+
+  const saveConversation = async (tabId: number, msgs: Message[]) => {
+    if (!pendingTerm) return
+    
+    try {
+      await chrome.storage.session.set({
+        [`conversation-${tabId}`]: {
+          term: pendingTerm,
+          messages: msgs,
+          pageTitle,
+          pageContent,
+          timestamp: Date.now(),
+        }
+      })
+    } catch (error) {
+      console.error('Error saving conversation:', error)
+    }
+  }
+
+  const clearConversation = () => {
+    if (currentTabId !== null) {
+      chrome.storage.session.remove([`conversation-${currentTabId}`])
+    }
+    setPendingTerm(null)
+    setMessages([])
+    setHasExplained(false)
+    setError(null)
+    setPageTitle(null)
+    setPageContent(null)
+  }
+
+  const sendMessage = useCallback(async (content: string, isInitial = false) => {
+    if (!pendingTerm) return
+    
     setIsLoading(true)
     setError(null)
 
@@ -58,6 +138,11 @@ function App() {
       return
     }
 
+    // Disconnect any existing port
+    if (portRef.current) {
+      portRef.current.disconnect()
+    }
+
     // Create port connection
     const port = chrome.runtime.connect({ name: 'skillmaxing-stream' })
     portRef.current = port
@@ -66,7 +151,7 @@ function App() {
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
-      content: `Please explain "${term}"`,
+      content: content,
     }
     setMessages(prev => [...prev, userMessage])
 
@@ -78,13 +163,17 @@ function App() {
     }
     setMessages(prev => [...prev, assistantMessage])
 
-    // Send start stream message
+    // Send start stream message - filter out empty messages
+    const allMessages = isInitial 
+      ? [userMessage] 
+      : [...messages.filter(m => m.content.trim() !== ''), userMessage]
+    
     port.postMessage({
       type: 'START_STREAM',
-      messages: [userMessage],
-      term,
-      pageTitle: title,
-      pageContent: content,
+      messages: allMessages,
+      term: pendingTerm,
+      pageTitle,
+      pageContent,
     })
 
     // Listen for stream messages
@@ -118,96 +207,40 @@ function App() {
       }
       portRef.current = null
     })
+  }, [pendingTerm, pageTitle, pageContent, messages])
+
+  const sendExplanation = async (term: string, _title: string | null, _content: string | null) => {
+    await sendMessage(`Please explain "${term}"`, true)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || isLoading || !pendingTerm) return
-
-    // Check for API key
-    chrome.storage.local.get([STORAGE_KEYS.SETTINGS], (result) => {
-      const settingsData = result[STORAGE_KEYS.SETTINGS] as { apiKey?: string } | undefined
-      if (!settingsData?.apiKey) {
-        setError(new Error('No API key configured. Please set up your API key in the extension options.'))
-        return
-      }
-
-      setIsLoading(true)
-      setError(null)
-      setInput('')
-
-      const userMessage: Message = {
-        id: Date.now().toString(),
-        role: 'user',
-        content: input.trim(),
-      }
-      setMessages(prev => [...prev, userMessage])
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '',
-      }
-      setMessages(prev => [...prev, assistantMessage])
-
-      const port = chrome.runtime.connect({ name: 'skillmaxing-stream' })
-      portRef.current = port
-
-      port.postMessage({
-        type: 'START_STREAM',
-        messages: [...messages, userMessage],
-        term: pendingTerm,
-        pageTitle,
-        pageContent,
-      })
-
-      port.onMessage.addListener((message: { type: string; chunk?: string; error?: string }) => {
-        if (message.type === MESSAGE_TYPES.STREAM_CHUNK && message.chunk) {
-          setMessages(prev => {
-            const lastMessage = prev[prev.length - 1]
-            if (lastMessage.role === 'assistant') {
-              return [
-                ...prev.slice(0, -1),
-                { ...lastMessage, content: lastMessage.content + message.chunk }
-              ]
-            }
-            return prev
-          })
-        } else if (message.type === MESSAGE_TYPES.STREAM_DONE) {
-          setIsLoading(false)
-          port.disconnect()
-          portRef.current = null
-        } else if (message.type === MESSAGE_TYPES.STREAM_ERROR) {
-          setError(new Error(message.error || 'Stream error'))
-          setIsLoading(false)
-          port.disconnect()
-          portRef.current = null
-        }
-      })
-
-      port.onDisconnect.addListener(() => {
-        if (isLoading) {
-          setIsLoading(false)
-        }
-        portRef.current = null
-      })
-    })
-  }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput(e.target.value)
+  const handleFollowUp = (content: string) => {
+    sendMessage(content, false)
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <div className="p-6">
-        <div className="max-w-md mx-auto">
-          <h1 className="text-2xl font-bold text-blue-600 mb-4">
+    <div className="min-h-screen bg-gray-100 flex flex-col">
+      {/* Header */}
+      <div className="bg-white shadow-sm p-4">
+        <div className="max-w-md mx-auto flex justify-between items-center">
+          <h1 className="text-xl font-bold text-blue-600">
             Skillmaxing.ai
           </h1>
-          
+          {pendingTerm && (
+            <button
+              onClick={clearConversation}
+              className="text-sm text-gray-500 hover:text-red-600 transition-colors"
+            >
+              New Conversation
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 p-4 overflow-y-auto">
+        <div className="max-w-md mx-auto">
           {!pendingTerm ? (
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-center py-8">
               Select any text on a page, right-click, and choose "Explain with Skillmaxing" to get started.
             </p>
           ) : (
@@ -230,18 +263,13 @@ function App() {
               {/* Messages */}
               <div className="space-y-4">
                 {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`p-4 rounded-lg shadow ${
-                      message.role === 'user'
-                        ? 'bg-blue-50 ml-8'
-                        : 'bg-white mr-8'
-                    }`}
-                  >
+                  <div key={message.id}>
                     {message.role === 'user' ? (
-                      <p className="text-gray-800">{message.content}</p>
+                      <UserMessage content={message.content} />
                     ) : (
-                      <AssistantMessage content={message.content} />
+                      <div className="bg-white mr-8 p-4 rounded-lg shadow">
+                        <AssistantMessage content={message.content} />
+                      </div>
                     )}
                   </div>
                 ))}
@@ -261,42 +289,34 @@ function App() {
                     </button>
                   </div>
                 )}
-              </div>
-
-              {/* Follow-up Input */}
-              <form onSubmit={handleSubmit} className="mt-4">
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    value={input}
-                    onChange={handleInputChange}
-                    placeholder="Ask a follow-up question..."
-                    disabled={isLoading}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isLoading || !input.trim()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Send
-                  </button>
-                </div>
-              </form>
-
-              {/* Settings Link */}
-              <div className="text-center mt-4">
-                <button
-                  onClick={() => chrome.runtime.openOptionsPage()}
-                  className="text-sm text-gray-500 hover:text-blue-600"
-                >
-                  Settings
-                </button>
+                
+                <div ref={messagesEndRef} />
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* Input Area */}
+      {pendingTerm && (
+        <div className="bg-white border-t p-4">
+          <div className="max-w-md mx-auto">
+            <FollowUpInput
+              onSubmit={handleFollowUp}
+              isLoading={isLoading}
+              disabled={!pendingTerm}
+            />
+            <div className="text-center mt-2">
+              <button
+                onClick={() => chrome.runtime.openOptionsPage()}
+                className="text-xs text-gray-400 hover:text-blue-600"
+              >
+                Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

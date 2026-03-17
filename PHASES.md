@@ -143,22 +143,21 @@ into the panel in real time, rendered as markdown. Works with configured provide
 **Goal:** Turn the one-shot explanation into a persistent chat thread.
 User can ask follow-up questions to explore the topic further.
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 **Depends on:** Phase 3 complete
 
 ### Tasks
 
-- [ ] `sidepanel/components/FollowUpInput.tsx`: text input + send button wired to `useChat`'s `handleSubmit` and `handleInputChange`
-- [ ] Confirm `useChat.messages` renders the full thread — no separate state array needed
-- [ ] `sidepanel/components/MessageList.tsx`: map over `useChat.messages`, render `AssistantMessage` or `UserMessage` by role
-- [ ] `sidepanel/components/UserMessage.tsx`: render user follow-up bubbles
-- [ ] "New conversation" button: call `useChat`'s `setMessages([])` and clear storage for current tab
-- [ ] Persist conversation per tab in `chrome.storage.session` keyed by `tabId`
-  - [ ] Save `useChat.messages` after each completed assistant response (use `onFinish` callback)
-  - [ ] On panel open, read stored messages and pass to `useChat` via `initialMessages`
-- [ ] Keyboard shortcut: `Enter` submits, `Shift+Enter` adds newline (override in `FollowUpInput`)
-- [ ] Confirm background worker `FOLLOW_UP` path passes full message history to `streamText`
+- [x] `sidepanel/components/FollowUpInput.tsx`: text input + send button with auto-resize textarea
+- [x] `sidepanel/components/UserMessage.tsx`: render user follow-up bubbles
+- [x] "New conversation" button: clears state and storage for current tab
+- [x] Persist conversation per tab in `chrome.storage.session` keyed by `tabId`
+  - [x] Save messages after each completed assistant response
+  - [x] On panel open, load stored conversation for current tab
+- [x] Keyboard shortcut: `Enter` submits, `Shift+Enter` adds newline
+- [x] Auto-scroll to bottom when new messages arrive
+- [x] Background worker passes full message history to `streamText`
 
 **Definition of done:** Full multi-turn conversation works. Closing and reopening
 the panel restores the last conversation. Each tab maintains its own thread.
