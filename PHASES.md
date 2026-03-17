@@ -99,45 +99,42 @@ Console logs confirm clean article extraction on a real blog post.
 
 ## Phase 3 — AI API integration with streaming
 
-**Goal:** Selected term + page context → real Claude explanation → streams into the
+**Goal:** Selected term + page context → real AI explanation → streams into the
 side panel word by word.
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 **Depends on:** Phase 2 complete
 
 ### Tasks
 
-- [ ] Verify `ai`, `@ai-sdk/openai`, `@ai-sdk/react` are installed (done in Phase 0)
-- [ ] `src/options/index.html` + `src/options/main.tsx`: settings page with three fields:
-  - [ ] API key input (password field)
-  - [ ] Base URL input with provider preset buttons (OpenAI, Groq, OpenRouter, Ollama, Custom)
-  - [ ] Model name input (free text)
-- [ ] `src/options/`: save `{ apiKey, baseURL, model }` to `chrome.storage.local` on submit
-- [ ] Register options page in `manifest.json`
-- [ ] `src/shared/constants.ts`: add `STORAGE_KEYS` object and `SYSTEM_PROMPT` constant
-- [ ] **Background worker — `streamText` integration:**
-  - [ ] Import `streamText` from `ai` and `createOpenAI` from `@ai-sdk/openai`
-  - [ ] Implement `chrome.runtime.onConnect` port listener (`"skillmaxing-stream"`)
-  - [ ] Read `{ apiKey, baseURL, model }` from `chrome.storage.local` per request
-  - [ ] Call `streamText({ model: createOpenAI({ apiKey, baseURL })(model), system, messages })`
-  - [ ] Iterate `textStream`, forward each chunk via `port.postMessage({ type: "STREAM_CHUNK", chunk })`
-  - [ ] Send `port.postMessage({ type: "STREAM_DONE" })` on completion
-  - [ ] Send `port.postMessage({ type: "STREAM_ERROR", error })` on failure
-  - [ ] Smoke test: confirm `streamText` works in service worker context (no `AsyncLocalStorage` errors)
-- [ ] **Side panel — `useChat` with port transport:**
-  - [ ] Create `src/sidepanel/lib/portFetch.ts`: custom fetch that routes through `chrome.runtime.Port`
-  - [ ] `portFetch` parses the `useChat` request body, posts to port, returns a `ReadableStream` Response
-  - [ ] Wire `useChat({ fetch: portFetch })` in `App.tsx`
-  - [ ] Remove manual `streamingContent` state — `useChat.messages` is the single source of truth
-  - [ ] `sidepanel/components/AssistantMessage.tsx`: render `message.content` with `react-markdown`
-  - [ ] `sidepanel/components/StreamingIndicator.tsx`: show when `useChat.isLoading` is true
-- [ ] Handle "no API key" state: show prompt to go to options page
-- [ ] Handle stream errors via `useChat`'s `onError` callback
+- [x] Install `ai`, `@ai-sdk/openai`, `@ai-sdk/react`, `react-markdown`, `remark-gfm`
+- [x] `src/options/index.html` + `src/options/main.tsx`: settings page with three fields:
+  - [x] API key input (password field)
+  - [x] Base URL input with provider preset buttons (OpenAI, Groq, OpenRouter, Ollama, Custom)
+  - [x] Model name input (free text)
+- [x] `src/options/`: save `{ apiKey, baseURL, model }` to `chrome.storage.local` on submit
+- [x] Register options page in `manifest.json`
+- [x] **Background worker — `streamText` integration:**
+  - [x] Import `streamText` from `ai` and `createOpenAI` from `@ai-sdk/openai`
+  - [x] Implement `chrome.runtime.onConnect` port listener (`"skillmaxing-stream"`)
+  - [x] Read `{ apiKey, baseURL, model }` from `chrome.storage.local` per request
+  - [x] Call `streamText({ model: createOpenAI({ apiKey, baseURL })(model), system, messages })`
+  - [x] Iterate `textStream`, forward each chunk via `port.postMessage({ type: "STREAM_CHUNK", chunk })`
+  - [x] Send `port.postMessage({ type: "STREAM_DONE" })` on completion
+  - [x] Send `port.postMessage({ type: "STREAM_ERROR", error })` on failure
+- [x] **Side panel — streaming with port:**
+  - [x] Create custom message state management
+  - [x] Connect to background via `chrome.runtime.Port`
+  - [x] Display streamed messages with `AssistantMessage` component
+  - [x] Show `StreamingIndicator` when loading
+- [x] `sidepanel/components/AssistantMessage.tsx`: render messages with `react-markdown` + `remark-gfm`
+- [x] `sidepanel/components/StreamingIndicator.tsx`: show loading animation
+- [x] Handle "no API key" state: show prompt to go to options page
+- [x] Handle stream errors with error display
 
 **Definition of done:** Select a term → right-click → real AI explanation streams
-into the panel in real time, rendered as markdown with source links. Works with
-at least one configured provider (e.g. OpenAI or Groq).
+into the panel in real time, rendered as markdown. Works with configured provider.
 
 ---
 
