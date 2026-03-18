@@ -48,23 +48,23 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 p-8 flex items-center justify-center">
-        <div className="text-gray-600">Loading...</div>
+      <div className="min-h-screen bg-surface-primary p-8 flex items-center justify-center">
+        <div className="text-content-secondary">Loading...</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-surface-primary p-8">
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold text-blue-600 mb-8">
+        <h1 className="text-3xl font-bold text-gradient mb-8">
           Skillmaxing.ai Settings
         </h1>
 
-        <div className="bg-white rounded-lg shadow p-6 space-y-6">
+        <div className="bg-surface-secondary border border-[rgba(255,255,255,0.1)] rounded-lg-lg shadow-elevated p-6 space-y-6">
           {/* Provider Presets */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-content-secondary mb-2">
               Provider Presets
             </label>
             <div className="flex flex-wrap gap-2">
@@ -72,7 +72,7 @@ function App() {
                 <button
                   key={preset}
                   onClick={() => applyPreset(preset as keyof typeof PROVIDER_PRESETS)}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-medium text-gray-700 transition-colors"
+                  className="px-4 py-2 bg-surface-tertiary hover:bg-surface-hover border border-[rgba(255,255,255,0.1)] rounded-md text-sm font-medium text-content-secondary hover:text-content-primary transition-all duration-fast"
                 >
                   {preset.charAt(0).toUpperCase() + preset.slice(1)}
                 </button>
@@ -82,7 +82,7 @@ function App() {
 
           {/* Base URL */}
           <div>
-            <label htmlFor="baseURL" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="baseURL" className="block text-sm font-medium text-content-secondary mb-2">
               Base URL
             </label>
             <input
@@ -91,16 +91,16 @@ function App() {
               value={baseURL}
               onChange={(e) => setBaseURL(e.target.value)}
               placeholder="https://api.openai.com/v1"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-surface-tertiary border border-[rgba(255,255,255,0.1)] rounded-md text-content-primary placeholder:text-content-tertiary focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-fast"
             />
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-content-tertiary">
               The API endpoint URL for your provider
             </p>
           </div>
 
           {/* API Key */}
           <div>
-            <label htmlFor="apiKey" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="apiKey" className="block text-sm font-medium text-content-secondary mb-2">
               API Key
             </label>
             <input
@@ -109,16 +109,16 @@ function App() {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="sk-..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-surface-tertiary border border-[rgba(255,255,255,0.1)] rounded-md text-content-primary placeholder:text-content-tertiary focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-fast"
             />
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-content-tertiary">
               Your API key (stored locally in your browser)
             </p>
           </div>
 
           {/* Model */}
           <div>
-            <label htmlFor="model" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="model" className="block text-sm font-medium text-content-secondary mb-2">
               Model
             </label>
             <input
@@ -127,9 +127,9 @@ function App() {
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder="gpt-4o-mini"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 bg-surface-tertiary border border-[rgba(255,255,255,0.1)] rounded-md text-content-primary placeholder:text-content-tertiary focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-fast"
             />
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-content-tertiary">
               The model name (e.g., gpt-4o-mini, claude-3-haiku, etc.)
             </p>
           </div>
@@ -138,20 +138,20 @@ function App() {
           <div className="pt-4">
             <button
               onClick={handleSave}
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-md transition-colors"
+              className="w-full py-3 px-4 bg-brand hover:bg-brand-dark text-white font-medium rounded-md hover:shadow-glow transition-all duration-normal"
             >
               Save Settings
             </button>
-            
+
             {saved && (
-              <p className="mt-2 text-sm text-green-600 text-center">
+              <p className="mt-2 text-sm text-brand-light text-center">
                 Settings saved successfully!
               </p>
             )}
           </div>
         </div>
 
-        <div className="mt-6 text-sm text-gray-500">
+        <div className="mt-6 text-sm text-content-tertiary">
           <p>
             Your settings are stored locally in your browser using Chrome's storage API.
             They are never sent to any server other than your configured AI provider.

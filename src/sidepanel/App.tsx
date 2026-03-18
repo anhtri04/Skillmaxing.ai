@@ -218,17 +218,17 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="min-h-screen bg-surface-primary flex flex-col">
       {/* Header */}
-      <div className="bg-white shadow-sm p-4">
+      <div className="bg-surface-secondary border-b border-[rgba(255,255,255,0.1)] p-4">
         <div className="max-w-md mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-bold text-blue-600">
+          <h1 className="text-xl font-bold text-gradient">
             Skillmaxing.ai
           </h1>
           {pendingTerm && (
             <button
               onClick={clearConversation}
-              className="text-sm text-gray-500 hover:text-red-600 transition-colors"
+              className="text-sm text-content-tertiary hover:text-brand transition-colors duration-fast"
             >
               New Conversation
             </button>
@@ -240,21 +240,26 @@ function App() {
       <div className="flex-1 p-4 overflow-y-auto">
         <div className="max-w-md mx-auto">
           {!pendingTerm ? (
-            <p className="text-gray-600 text-center py-8">
-              Select any text on a page, right-click, and choose "Explain with Skillmaxing" to get started.
-            </p>
+            <div className="text-center py-12">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-gradient-to-br from-brand to-brand-dark shadow-glow flex items-center justify-center">
+                <span className="text-2xl font-bold text-white">S</span>
+              </div>
+              <p className="text-content-secondary">
+                Select any text on a page, right-click, and choose "Explain with Skillmaxing" to get started.
+              </p>
+            </div>
           ) : (
             <div className="space-y-4">
               {/* Term Header */}
-              <div className="bg-white rounded-lg shadow p-4">
-                <h2 className="text-sm font-semibold text-gray-500 mb-1">
+              <div className="bg-surface-secondary border border-[rgba(255,255,255,0.1)] rounded-lg-md shadow-elevated p-4">
+                <h2 className="text-sm font-semibold text-content-tertiary mb-1">
                   Explaining:
                 </h2>
-                <p className="text-xl font-bold text-blue-600">
+                <p className="text-xl font-bold text-gradient">
                   "{pendingTerm}"
                 </p>
                 {pageTitle && (
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-content-tertiary mt-1">
                     from "{pageTitle}"
                   </p>
                 )}
@@ -267,23 +272,23 @@ function App() {
                     {message.role === 'user' ? (
                       <UserMessage content={message.content} />
                     ) : (
-                      <div className="bg-white mr-8 p-4 rounded-lg shadow">
+                      <div className="bg-surface-secondary border border-[rgba(255,255,255,0.1)] mr-8 p-4 rounded-lg-md shadow-elevated">
                         <AssistantMessage content={message.content} />
                       </div>
                     )}
                   </div>
                 ))}
-                
+
                 <StreamingIndicator isLoading={isLoading} />
-                
+
                 {error && (
-                  <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
-                    <p className="text-red-600 text-sm">
+                  <div className="bg-brand-subtle border border-brand p-4 rounded-lg-md">
+                    <p className="text-brand-light text-sm">
                       Error: {error.message}
                     </p>
                     <button
                       onClick={() => chrome.runtime.openOptionsPage()}
-                      className="text-blue-600 hover:underline text-sm mt-2"
+                      className="text-brand hover:text-brand-light hover:underline text-sm mt-2 transition-colors duration-fast"
                     >
                       Configure API Key →
                     </button>
@@ -299,7 +304,7 @@ function App() {
 
       {/* Input Area */}
       {pendingTerm && (
-        <div className="bg-white border-t p-4">
+        <div className="bg-surface-secondary border-t border-[rgba(255,255,255,0.1)] p-4">
           <div className="max-w-md mx-auto">
             <FollowUpInput
               onSubmit={handleFollowUp}
@@ -309,7 +314,7 @@ function App() {
             <div className="text-center mt-2">
               <button
                 onClick={() => chrome.runtime.openOptionsPage()}
-                className="text-xs text-gray-400 hover:text-blue-600"
+                className="text-xs text-content-tertiary hover:text-brand transition-colors duration-fast"
               >
                 Settings
               </button>

@@ -2,8 +2,104 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================
+   DESIGN TOKENS - Skillmaxing.ai
+   Brand Color: #E8486C (Coral Pink)
+   ============================================ */
+
+:root {
+  /* Core Brand Colors */
+  --color-brand: #E8486C;
+  --color-brand-light: #FF6B8A;
+  --color-brand-dark: #D13A5C;
+  --color-brand-glow: rgba(232, 72, 108, 0.4);
+  --color-brand-subtle: rgba(232, 72, 108, 0.1);
+
+  /* Neutral Colors */
+  --color-black: #0a0a0a;
+  --color-black-soft: #141414;
+  --color-black-elevated: #1a1a1a;
+  --color-black-hover: #252525;
+
+  --color-white: #ffffff;
+  --color-white-soft: #f5f5f5;
+  --color-white-muted: #e0e0e0;
+  --color-gray: #888888;
+  --color-gray-dark: #444444;
+
+  /* Semantic Colors */
+  --color-bg-primary: var(--color-black);
+  --color-bg-secondary: var(--color-black-soft);
+  --color-bg-tertiary: var(--color-black-elevated);
+  --color-bg-hover: var(--color-black-hover);
+
+  --color-text-primary: var(--color-white);
+  --color-text-secondary: var(--color-white-muted);
+  --color-text-tertiary: var(--color-gray);
+
+  --color-accent-primary: var(--color-brand);
+  --color-accent-hover: var(--color-brand-dark);
+
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border-accent: var(--color-brand);
+  --color-border-focus: var(--color-brand);
+
+  /* Effects */
+  --glow-brand: 0 0 20px var(--color-brand-glow);
+  --glow-brand-strong: 0 0 40px var(--color-brand-glow);
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base Styles */
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-dark);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-gray);
+}
+
+/* Text Gradient Utility */
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-brand), var(--color-brand-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glow Text Utility */
+.glow-text {
+  text-shadow: 0 0 20px var(--color-brand-glow);
+}
+
+/* Selection Color */
+::selection {
+  background-color: var(--color-brand-subtle);
+  color: var(--color-brand-light);
 }

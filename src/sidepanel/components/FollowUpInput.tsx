@@ -41,25 +41,27 @@ export function FollowUpInput({ onSubmit, isLoading, disabled }: FollowUpInputPr
   return (
     <form onSubmit={handleSubmit} className="mt-4">
       <div className="flex items-end space-x-2">
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask a follow-up question..."
-          disabled={isLoading || disabled}
-          rows={1}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 resize-none min-h-[42px] max-h-[150px]"
-        />
+        <div className="flex-1 relative">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask a follow-up question..."
+            disabled={isLoading || disabled}
+            rows={1}
+            className="w-full px-4 py-3 bg-surface-tertiary border border-[rgba(255,255,255,0.1)] rounded-lg-md focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-secondary disabled:opacity-50 resize-none min-h-[48px] max-h-[150px] text-content-primary placeholder:text-content-tertiary transition-all duration-normal"
+          />
+        </div>
         <button
           type="submit"
           disabled={isLoading || !input.trim() || disabled}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+          className="px-5 py-3 bg-brand text-white rounded-lg-md hover:bg-brand-dark hover:shadow-glow disabled:bg-neutral-gray-dark disabled:cursor-not-allowed disabled:hover:shadow-none transition-all duration-normal whitespace-nowrap font-medium"
         >
           Send
         </button>
       </div>
-      <p className="text-xs text-gray-400 mt-1">
+      <p className="text-xs text-content-tertiary mt-2 text-center">
         Press Enter to send, Shift+Enter for new line
       </p>
     </form>
