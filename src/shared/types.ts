@@ -18,6 +18,9 @@ export interface PageContent {
   title: string
   content: string
   url: string
+  extractionMethod?: string
+  usedFallback?: boolean
+  duration?: number
 }
 
 export interface Settings {

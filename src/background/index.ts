@@ -17,25 +17,52 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === "explain-term" && tab?.id && info.selectionText) {
     const tabId = tab.id;
     const term = info.selectionText;
-    console.log('Context menu clicked, tab ID:', tabId);
+    const tabUrl = tab.url || 'unknown';
+    
+    console.log('[Skillmaxing:Menu]', {
+      event: 'Context menu clicked',
+      tabId,
+      url: tabUrl,
+      selectedTerm: term.substring(0, 50) + (term.length > 50 ? '...' : ''),
+      timestamp: new Date().toISOString()
+    });
     
     // Open side panel IMMEDIATELY (synchronously within user gesture)
     chrome.sidePanel.open({ tabId }).then(() => {
-      console.log('Side panel opened');
+      console.log('[Skillmaxing:Menu] Side panel opened successfully');
       
       // Now do the async work
-      handleExplainTerm(tabId, term);
+      handleExplainTerm(tabId, term, tabUrl);
     }).catch((error) => {
-      console.error('Error opening side panel:', error);
+      console.error('[Skillmaxing:Menu] Error opening side panel:', error);
     });
   }
 });
 
-async function handleExplainTerm(tabId: number, term: string) {
+async function handleExplainTerm(tabId: number, term: string, tabUrl: string) {
+  const startTime = Date.now();
+  
+  console.log('[Skillmaxing:Flow] Starting explain term flow', {
+    tabId,
+    url: tabUrl,
+    term: term.substring(0, 50) + (term.length > 50 ? '...' : '')
+  });
+  
   try {
     // Get page content
-    const pageContent = await getPageContentWithRetry(tabId, 3);
-    console.log('Page content retrieved:', pageContent ? 'success' : 'failed');
+    const pageContent = await getPageContentWithRetry(tabId, tabUrl, 3);
+    const duration = Date.now() - startTime;
+    
+    console.log('[Skillmaxing:Flow] Content extraction result', {
+      tabId,
+      url: tabUrl,
+      success: !!pageContent,
+      hasTitle: !!pageContent?.title,
+      hasContent: !!pageContent?.content,
+      contentLength: pageContent?.content?.length || 0,
+      title: pageContent?.title?.substring(0, 50) || 'N/A',
+      duration: `${duration}ms`
+    });
     
     // Send message to side panel with term and page content
     setTimeout(() => {
@@ -45,10 +72,10 @@ async function handleExplainTerm(tabId: number, term: string) {
         pageTitle: pageContent?.title || null,
         pageContent: pageContent?.content || null,
       });
-      console.log('Message sent to side panel');
+      console.log('[Skillmaxing:Flow] Message sent to side panel');
     }, 500);
   } catch (error) {
-    console.error('Error in handleExplainTerm:', error);
+    console.error('[Skillmaxing:Flow] Error in handleExplainTerm:', error);
     // Fallback: send just the term
     setTimeout(() => {
       chrome.runtime.sendMessage({
@@ -195,33 +222,116 @@ function buildSystemMessage(term: string, pageTitle?: string | null, pageContent
   return context;
 }
 
-async function getPageContentWithRetry(tabId: number, retries: number): Promise<PageContent | null> {
+async function getPageContentWithRetry(tabId: number, tabUrl: string, retries: number): Promise<PageContent | null> {
+  console.log(`[Skillmaxing:Retry] Starting content extraction with ${retries} max retries`, {
+    tabId,
+    url: tabUrl
+  });
+  
   for (let i = 0; i < retries; i++) {
     try {
-      const content = await getPageContent(tabId);
-      if (content) return content;
+      console.log(`[Skillmaxing:Retry] Attempt ${i + 1}/${retries}`, { tabId, url: tabUrl });
+      const content = await getPageContent(tabId, tabUrl);
+      
+      if (content) {
+        console.log(`[Skillmaxing:Retry] Success on attempt ${i + 1}`, {
+          tabId,
+          url: tabUrl,
+          attempts: i + 1
+        });
+        return content;
+      }
       
       if (i < retries - 1) {
-        console.log(`Retry ${i + 1}/${retries} getting page content...`);
+        console.log(`[Skillmaxing:Retry] Attempt ${i + 1} failed, waiting 200ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, 200));
       }
     } catch (error) {
-      console.error(`Attempt ${i + 1} failed:`, error);
+      console.error(`[Skillmaxing:Retry] Attempt ${i + 1} threw error:`, error);
     }
   }
+  
+  console.error(`[Skillmaxing:Retry] All ${retries} attempts failed`, { tabId, url: tabUrl });
   return null;
 }
 
-async function getPageContent(tabId: number): Promise<PageContent | null> {
+async function getPageContent(tabId: number, tabUrl: string): Promise<PageContent | null> {
+  const timestamp = Date.now();
+  const logPrefix = `[Skillmaxing:Content:${timestamp}]`;
+  
+  console.log(`${logPrefix} Starting content extraction request`, {
+    tabId,
+    url: tabUrl,
+    timestamp: new Date().toISOString()
+  });
+
   return new Promise((resolve) => {
+    // Set timeout to catch unresponsive content scripts
+    const timeout = setTimeout(() => {
+      console.warn(`${logPrefix} TIMEOUT - Content script did not respond within 5s`, {
+        tabId,
+        url: tabUrl,
+        possibleReasons: [
+          'Content script not injected yet',
+          'Page is chrome:// URL or restricted',
+          'Content script crashed',
+          'Extension was just reloaded',
+          'SPA navigation (React/Vue) without page reload'
+        ]
+      });
+      resolve(null);
+    }, 5000);
+
     chrome.tabs.sendMessage(
       tabId,
       { type: MESSAGE_TYPES.GET_PAGE_CONTENT },
       (response) => {
+        clearTimeout(timeout);
+        const duration = Date.now() - timestamp;
+        
         if (chrome.runtime.lastError) {
-          console.log('Content script not ready yet:', chrome.runtime.lastError.message);
+          const errorMsg = chrome.runtime.lastError.message;
+          let reason = 'Unknown';
+          
+          if (errorMsg && errorMsg.includes('Could not establish connection')) {
+            reason = 'Content script not injected or not responding';
+          } else if (errorMsg && errorMsg.includes('Receiving end does not exist')) {
+            reason = 'Content script not loaded on this page';
+          } else if (tabUrl?.startsWith('chrome://')) {
+            reason = 'Chrome internal pages block content scripts';
+          } else if (tabUrl?.startsWith('file://')) {
+            reason = 'Local file access may be restricted';
+          }
+          
+          console.error(`${logPrefix} Content script error (${duration}ms):`, {
+            error: errorMsg,
+            reason,
+            tabId,
+            url: tabUrl,
+            duration: `${duration}ms`
+          });
           resolve(null);
+          
+        } else if (!response) {
+          console.warn(`${logPrefix} No response from content script (${duration}ms):`, {
+            tabId,
+            url: tabUrl,
+            note: 'Content script may be present but returned null/undefined',
+            duration: `${duration}ms`
+          });
+          resolve(null);
+          
         } else {
+          console.log(`${logPrefix} Content received successfully (${duration}ms):`, {
+            tabId,
+            url: tabUrl,
+            hasTitle: !!response.title,
+            title: response.title?.substring(0, 50) + (response.title?.length > 50 ? '...' : ''),
+            contentLength: response.content?.length || 0,
+            extractionMethod: response.extractionMethod || 'readability',
+            usedFallback: response.usedFallback || false,
+            duration: `${duration}ms`
+          });
           resolve(response as PageContent);
         }
       }
