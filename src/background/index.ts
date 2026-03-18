@@ -1,5 +1,5 @@
 import { streamText } from 'ai'
-import { createOpenAI } from '@ai-sdk/openai'
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { MESSAGE_TYPES, STORAGE_KEYS, SYSTEM_PROMPT } from '../shared/constants'
 import type { PageContent, Settings } from '../shared/types'
 
@@ -85,17 +85,33 @@ chrome.runtime.onConnect.addListener((port) => {
           // Build system message with context
           const systemMessage = buildSystemMessage(term, pageTitle, pageContent);
           
-          // Create OpenAI client with custom baseURL
-          const openai = createOpenAI({
+          // Create OpenAI-compatible client for Groq/custom endpoints
+          const openai = createOpenAICompatible({
+            name: 'custom-provider',
             apiKey: settings.apiKey,
-            baseURL: settings.baseURL || undefined,
+            baseURL: settings.baseURL || 'https://api.openai.com/v1',
           });
           
-          // Stream the response
+          // Map messages to CoreMessage format, filtering out empty messages
+          const coreMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+            { role: 'system', content: systemMessage },
+            ...messages
+              .filter((m: { role: string; content: unknown }) => {
+                const contentStr = typeof m.content === 'string' ? m.content : String(m.content);
+                return contentStr.trim() !== '';
+              })
+              .map((m: { role: string; content: unknown }) => {
+                const contentStr = typeof m.content === 'string' ? m.content : String(m.content);
+                return {
+                  role: m.role as 'user' | 'assistant',
+                  content: contentStr,
+                };
+              }),
+          ];
+
           const result = await streamText({
             model: openai(settings.model || 'gpt-4o-mini'),
-            system: systemMessage,
-            messages: messages,
+            messages: coreMessages,
           });
           
           // Forward each chunk
@@ -113,9 +129,17 @@ chrome.runtime.onConnect.addListener((port) => {
           
         } catch (error) {
           console.error('Stream error:', error);
+          console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+
           let errorMessage = 'Unknown error occurred';
           if (error instanceof Error) {
             errorMessage = error.message;
+            // Log additional error properties if available
+            const errorAny = error as Error & { statusCode?: number; response?: unknown; cause?: unknown };
+            if (errorAny.statusCode) console.error('Error statusCode:', errorAny.statusCode);
+            if (errorAny.response) console.error('Error response:', JSON.stringify(errorAny.response, null, 2));
+            if (errorAny.cause) console.error('Error cause:', errorAny.cause);
+
             if (errorMessage.includes('401')) {
               errorMessage = 'Invalid API key. Please check your settings and ensure the API key is correct.';
             } else if (errorMessage.includes('404')) {
