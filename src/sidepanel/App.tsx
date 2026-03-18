@@ -21,14 +21,17 @@ function App() {
   const [error, setError] = useState<Error | null>(null)
   const [hasExplained, setHasExplained] = useState(false)
   const [currentTabId, setCurrentTabId] = useState<number | null>(null)
+  const [currentPageUrl, setCurrentPageUrl] = useState<string | null>(null)
   const portRef = useRef<chrome.runtime.Port | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const lastExplainedTermRef = useRef<string | null>(null)
 
-  // Get current tab ID
+  // Get current tab ID and URL
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
         setCurrentTabId(tabs[0].id)
+        setCurrentPageUrl(tabs[0].url || null)
       }
     })
   }, [])
@@ -54,27 +57,45 @@ function App() {
 
   // Listen for messages from background script
   useEffect(() => {
-    const handler = (msg: ExtensionMessage & { tabId?: number }) => {
+    const handler = (msg: ExtensionMessage & { tabId?: number; pageUrl?: string }) => {
       if (msg.type === MESSAGE_TYPES.EXPLAIN_TERM) {
-        // Check if this message is for the current tab
-        setPendingTerm(msg.term || null)
+        const newTerm = msg.term || null
+        const newPageUrl = msg.pageUrl || null
+
+        // Check if we're on a different page - if so, clear conversation
+        if (newPageUrl && newPageUrl !== currentPageUrl) {
+          setMessages([])
+          setCurrentPageUrl(newPageUrl)
+          lastExplainedTermRef.current = null
+        }
+
+        // Only reset hasExplained if it's a different term
+        if (newTerm !== pendingTerm) {
+          setHasExplained(false)
+        }
+
+        setPendingTerm(newTerm)
         setPageTitle(msg.pageTitle || null)
         setPageContent(msg.pageContent || null)
-        setHasExplained(false)
         setError(null)
       }
     }
     chrome.runtime.onMessage.addListener(handler)
     return () => chrome.runtime.onMessage.removeListener(handler)
-  }, [])
+  }, [pendingTerm, currentPageUrl])
 
   // Auto-trigger explanation when term is received
   useEffect(() => {
-    if (pendingTerm && !hasExplained && !isLoading && messages.length === 0) {
+    if (pendingTerm && !hasExplained && !isLoading) {
+      // Prevent duplicate API calls for the same term
+      if (lastExplainedTermRef.current === pendingTerm) {
+        return
+      }
+      lastExplainedTermRef.current = pendingTerm
       setHasExplained(true)
       sendExplanation(pendingTerm, pageTitle, pageContent)
     }
-  }, [pendingTerm, hasExplained, isLoading, messages.length, pageTitle, pageContent])
+  }, [pendingTerm, hasExplained, isLoading, pageTitle, pageContent])
 
   const loadConversation = async (tabId: number) => {
     try {
@@ -121,6 +142,7 @@ function App() {
     setError(null)
     setPageTitle(null)
     setPageContent(null)
+    lastExplainedTermRef.current = null
   }
 
   const sendMessage = useCallback(async (content: string, isInitial = false) => {

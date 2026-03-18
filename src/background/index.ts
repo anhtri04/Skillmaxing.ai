@@ -71,6 +71,7 @@ async function handleExplainTerm(tabId: number, term: string, tabUrl: string) {
         term: term,
         pageTitle: pageContent?.title || null,
         pageContent: pageContent?.content || null,
+        pageUrl: tabUrl,
       });
       console.log('[Skillmaxing:Flow] Message sent to side panel');
     }, 500);
@@ -83,6 +84,7 @@ async function handleExplainTerm(tabId: number, term: string, tabUrl: string) {
         term: term,
         pageTitle: null,
         pageContent: null,
+        pageUrl: tabUrl,
       });
     }, 500);
   }
