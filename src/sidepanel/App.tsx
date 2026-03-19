@@ -37,19 +37,19 @@ function App() {
     })
   }, [])
 
-  // Load conversation from storage when tab changes
+  // Load conversation from storage when page URL changes
   useEffect(() => {
-    if (currentTabId !== null) {
-      loadConversation(currentTabId)
+    if (currentPageUrl) {
+      loadConversation(currentPageUrl)
     }
-  }, [currentTabId])
+  }, [currentPageUrl])
 
   // Save conversation to storage when messages change
   useEffect(() => {
-    if (currentTabId !== null && messages.length > 0) {
-      saveConversation(currentTabId, messages)
+    if (currentPageUrl && messages.length > 0) {
+      saveConversation(currentPageUrl, messages)
     }
-  }, [messages, currentTabId])
+  }, [messages, currentPageUrl])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -63,11 +63,12 @@ function App() {
         const newTerm = msg.term || null
         const newPageUrl = msg.pageUrl || null
 
-        // Check if we're on a different page - if so, clear conversation
+        // Check if we're on a different page - load conversation for new URL
         if (newPageUrl && newPageUrl !== currentPageUrl) {
-          setMessages([])
           setCurrentPageUrl(newPageUrl)
           lastExplainedTermRef.current = null
+          // Load conversation for new URL (will restore if exists, or set empty state)
+          loadConversation(newPageUrl)
         }
 
         // Only reset hasExplained if it's a different term
