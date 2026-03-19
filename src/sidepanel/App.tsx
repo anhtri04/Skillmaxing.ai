@@ -48,7 +48,7 @@ function App() {
 
   // Listen for messages from background script
   useEffect(() => {
-    const handler = (msg: ExtensionMessage & { tabId?: number; pageUrl?: string }) => {
+    const handler = async (msg: ExtensionMessage & { tabId?: number; pageUrl?: string }) => {
       if (msg.type === MESSAGE_TYPES.EXPLAIN_TERM) {
         const newTerm = msg.term || null
         const newPageUrl = msg.pageUrl || null
@@ -58,7 +58,7 @@ function App() {
           setCurrentPageUrl(newPageUrl)
           lastExplainedTermRef.current = null
           // Load conversation for new URL (will restore if exists, or set empty state)
-          loadConversation(newPageUrl)
+          await loadConversation(newPageUrl)
         }
 
         // Only reset hasExplained if it's a different term
