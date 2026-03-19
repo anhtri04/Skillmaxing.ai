@@ -27,4 +27,15 @@ export interface Settings {
   apiKey: string
   baseURL: string
   model: string
+  exaApiKey: string
+}
+
+export interface ExaSearchResult {
+  id: string
+  title: string
+  url: string
+  highlight: string
+  score: number
+  publishedDate?: string
+  author?: string
 }

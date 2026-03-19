@@ -13,6 +13,7 @@ function App() {
   const [apiKey, setApiKey] = useState('')
   const [baseURL, setBaseURL] = useState('')
   const [model, setModel] = useState('')
+  const [exaApiKey, setExaApiKey] = useState('')
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -24,6 +25,7 @@ function App() {
         setApiKey(settings.apiKey || '')
         setBaseURL(settings.baseURL || '')
         setModel(settings.model || '')
+        setExaApiKey(settings.exaApiKey || '')
       }
       setLoading(false)
     })
@@ -34,6 +36,7 @@ function App() {
       apiKey,
       baseURL,
       model,
+      exaApiKey,
     }
     await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: settings })
     setSaved(true)
@@ -131,6 +134,43 @@ function App() {
             />
             <p className="mt-1 text-sm text-content-tertiary">
               The model name (e.g., gpt-4o-mini, claude-3-haiku, etc.)
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-[rgba(255,255,255,0.1)] pt-6">
+            <h2 className="text-lg font-semibold text-content-primary mb-4">
+              Web Search (Exa AI)
+            </h2>
+            <p className="text-sm text-content-secondary mb-4">
+              Configure Exa AI for web search capabilities. The AI will search for additional context when explaining terms.
+            </p>
+          </div>
+
+          {/* Exa API Key */}
+          <div>
+            <label htmlFor="exaApiKey" className="block text-sm font-medium text-content-secondary mb-2">
+              Exa API Key
+            </label>
+            <input
+              type="password"
+              id="exaApiKey"
+              value={exaApiKey}
+              onChange={(e) => setExaApiKey(e.target.value)}
+              placeholder="exa-..."
+              className="w-full px-4 py-2 bg-surface-tertiary border border-[rgba(255,255,255,0.1)] rounded-md text-content-primary placeholder:text-content-tertiary focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-fast"
+            />
+            <p className="mt-1 text-sm text-content-tertiary">
+              Your Exa API key for web search (get one at{' '}
+              <a
+                href="https://exa.ai"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand hover:text-brand-light underline"
+              >
+                exa.ai
+              </a>
+              )
             </p>
           </div>
 

@@ -1,7 +1,9 @@
-import { streamText } from 'ai'
+import { streamText, zodSchema, stepCountIs } from 'ai'
+import { z } from 'zod'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { MESSAGE_TYPES, STORAGE_KEYS, SYSTEM_PROMPT } from '../shared/constants'
 import type { PageContent, Settings } from '../shared/types'
+import { searchWithExa } from './exa-search'
 
 console.log('Skillmaxing.ai background script loaded')
 
@@ -122,8 +124,8 @@ chrome.runtime.onConnect.addListener((port) => {
           });
           
           // Map messages to CoreMessage format, filtering out empty messages
-          const coreMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-            { role: 'system', content: systemMessage },
+          const coreMessages = [
+            { role: 'system' as const, content: systemMessage },
             ...messages
               .filter((m: { role: string; content: unknown }) => {
                 const contentStr = typeof m.content === 'string' ? m.content : String(m.content);
@@ -138,18 +140,73 @@ chrome.runtime.onConnect.addListener((port) => {
               }),
           ];
 
+          console.log('[Skillmaxing:Stream] Starting stream with web_search tool');
+          
+          // Stream with tools - define inline
           const result = await streamText({
             model: openai(settings.model || 'gpt-4o-mini'),
             messages: coreMessages,
+            tools: {
+              web_search: {
+                description: 'Search the web for additional context about the term. Use this tool to find relevant information before explaining. Returns search results with title, URL, and highlights.',
+                inputSchema: zodSchema(z.object({
+                  query: z.string().describe('The search query to find information about'),
+                })),
+                execute: async ({ query }: { query: string }) => {
+                  console.log('[Skillmaxing:Tool] web_search tool called with query:', query);
+                  
+                  if (!settings.exaApiKey) {
+                    console.log('[Skillmaxing:Tool] Exa API key not configured, returning error');
+                    return { results: [], error: 'Exa API key not configured' };
+                  }
+                  
+                  try {
+                    console.log('[Skillmaxing:Tool] Calling Exa API...');
+                    const results = await searchWithExa(query, settings.exaApiKey, 5);
+                    console.log('[Skillmaxing:Tool] Exa search returned', results.length, 'results');
+                    console.log('[Skillmaxing:Tool] First result:', results[0]);
+                    return { results };
+                  } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    console.error('[Skillmaxing:Tool] Exa search error:', error);
+                    return { results: [], error: errorMessage };
+                  }
+                },
+              },
+            },
+            toolChoice: 'auto',
+            stopWhen: stepCountIs(5), // Allow multi-step: tool call + response generation
+            onStepFinish: ({ stepNumber, text, toolCalls, toolResults, finishReason }) => {
+              console.log(`[Skillmaxing:Stream] Step ${stepNumber} finished (${finishReason})`);
+              console.log(`[Skillmaxing:Stream] Step text length: ${text?.length || 0}`);
+              console.log(`[Skillmaxing:Stream] Tool calls in step:`, toolCalls?.length || 0);
+              console.log(`[Skillmaxing:Stream] Tool results in step:`, toolResults?.length || 0);
+            },
           });
           
+          console.log('[Skillmaxing:Stream] Stream started, waiting for chunks...');
+          
+          let chunkCount = 0;
           // Forward each chunk
           for await (const chunk of result.textStream) {
+            chunkCount++;
+            if (chunkCount === 1) {
+              console.log('[Skillmaxing:Stream] First chunk received');
+            }
+            if (chunkCount % 10 === 0) {
+              console.log(`[Skillmaxing:Stream] Received ${chunkCount} chunks so far`);
+            }
             port.postMessage({
               type: MESSAGE_TYPES.STREAM_CHUNK,
               chunk,
             });
           }
+          
+          console.log(`[Skillmaxing:Stream] Stream complete. Total chunks: ${chunkCount}`);
+          
+          // Log final response for debugging
+          const finalText = await result.text;
+          console.log(`[Skillmaxing:Stream] Final response length: ${finalText.length}`);
           
           // Signal completion
           port.postMessage({
@@ -194,18 +251,19 @@ chrome.runtime.onConnect.addListener((port) => {
 async function getSettings(): Promise<Settings> {
   return new Promise((resolve) => {
     chrome.storage.local.get([STORAGE_KEYS.SETTINGS], (result) => {
-      const settings = result[STORAGE_KEYS.SETTINGS] as Settings | undefined;
+      const settings = result[STORAGE_KEYS.SETTINGS] as Settings | undefined
       if (settings) {
-        resolve(settings);
+        resolve(settings)
       } else {
         resolve({
           apiKey: '',
           baseURL: '',
           model: '',
-        });
+          exaApiKey: '',
+        })
       }
-    });
-  });
+    })
+  })
 }
 
 function buildSystemMessage(term: string, pageTitle?: string | null, pageContent?: string | null): string {
