@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { STORAGE_KEYS } from '../shared/constants'
-import type { Settings } from '../shared/types'
+import type { Settings, SearchProviderType } from '../shared/types'
 
 const PROVIDER_PRESETS = {
   openai: { baseURL: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
@@ -9,11 +9,24 @@ const PROVIDER_PRESETS = {
   ollama: { baseURL: 'http://localhost:11434/api', model: 'llama3.2' },
 }
 
+const SEARCH_PROVIDERS: Record<SearchProviderType, { name: string; url: string; keyPlaceholder: string }> = {
+  exa: { name: 'Exa AI', url: 'https://exa.ai', keyPlaceholder: 'exa-...' },
+  linkup: { name: 'Linkup', url: 'https://linkup.ai', keyPlaceholder: 'linkup-...' },
+  tavily: { name: 'Tavily', url: 'https://tavily.com', keyPlaceholder: 'tvly-...' },
+  firecrawl: { name: 'Firecrawl', url: 'https://firecrawl.dev', keyPlaceholder: 'fc-...' },
+  perplexity: { name: 'Perplexity Sonar', url: 'https://perplexity.ai', keyPlaceholder: 'pplx-...' },
+}
+
 function App() {
   const [apiKey, setApiKey] = useState('')
   const [baseURL, setBaseURL] = useState('')
   const [model, setModel] = useState('')
+  const [searchProvider, setSearchProvider] = useState<SearchProviderType>('exa')
   const [exaApiKey, setExaApiKey] = useState('')
+  const [linkupApiKey, setLinkupApiKey] = useState('')
+  const [tavilyApiKey, setTavilyApiKey] = useState('')
+  const [firecrawlApiKey, setFirecrawlApiKey] = useState('')
+  const [perplexityApiKey, setPerplexityApiKey] = useState('')
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -25,7 +38,12 @@ function App() {
         setApiKey(settings.apiKey || '')
         setBaseURL(settings.baseURL || '')
         setModel(settings.model || '')
+        setSearchProvider(settings.searchProvider || 'exa')
         setExaApiKey(settings.exaApiKey || '')
+        setLinkupApiKey(settings.linkupApiKey || '')
+        setTavilyApiKey(settings.tavilyApiKey || '')
+        setFirecrawlApiKey(settings.firecrawlApiKey || '')
+        setPerplexityApiKey(settings.perplexityApiKey || '')
       }
       setLoading(false)
     })
@@ -36,7 +54,12 @@ function App() {
       apiKey,
       baseURL,
       model,
+      searchProvider,
       exaApiKey,
+      linkupApiKey,
+      tavilyApiKey,
+      firecrawlApiKey,
+      perplexityApiKey,
     }
     await chrome.storage.local.set({ [STORAGE_KEYS.SETTINGS]: settings })
     setSaved(true)
@@ -47,6 +70,45 @@ function App() {
     const config = PROVIDER_PRESETS[preset]
     setBaseURL(config.baseURL)
     setModel(config.model)
+  }
+
+  const currentSearchProvider = SEARCH_PROVIDERS[searchProvider]
+
+  const getCurrentApiKey = (): string => {
+    switch (searchProvider) {
+      case 'exa':
+        return exaApiKey
+      case 'linkup':
+        return linkupApiKey
+      case 'tavily':
+        return tavilyApiKey
+      case 'firecrawl':
+        return firecrawlApiKey
+      case 'perplexity':
+        return perplexityApiKey
+      default:
+        return exaApiKey
+    }
+  }
+
+  const setCurrentApiKey = (value: string) => {
+    switch (searchProvider) {
+      case 'exa':
+        setExaApiKey(value)
+        break
+      case 'linkup':
+        setLinkupApiKey(value)
+        break
+      case 'tavily':
+        setTavilyApiKey(value)
+        break
+      case 'firecrawl':
+        setFirecrawlApiKey(value)
+        break
+      case 'perplexity':
+        setPerplexityApiKey(value)
+        break
+    }
   }
 
   if (loading) {
@@ -68,7 +130,7 @@ function App() {
           {/* Provider Presets */}
           <div>
             <label className="block text-sm font-medium text-content-secondary mb-2">
-              Provider Presets
+              AI Provider Presets
             </label>
             <div className="flex flex-wrap gap-2">
               {Object.keys(PROVIDER_PRESETS).map((preset) => (
@@ -97,14 +159,14 @@ function App() {
               className="w-full px-4 py-2 bg-surface-tertiary border border-[rgba(255,255,255,0.1)] rounded-md text-content-primary placeholder:text-content-tertiary focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-fast"
             />
             <p className="mt-1 text-sm text-content-tertiary">
-              The API endpoint URL for your provider
+              The API endpoint URL for your AI provider
             </p>
           </div>
 
           {/* API Key */}
           <div>
             <label htmlFor="apiKey" className="block text-sm font-medium text-content-secondary mb-2">
-              API Key
+              AI API Key
             </label>
             <input
               type="password"
@@ -115,7 +177,7 @@ function App() {
               className="w-full px-4 py-2 bg-surface-tertiary border border-[rgba(255,255,255,0.1)] rounded-md text-content-primary placeholder:text-content-tertiary focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-fast"
             />
             <p className="mt-1 text-sm text-content-tertiary">
-              Your API key (stored locally in your browser)
+              Your AI provider API key (stored locally in your browser)
             </p>
           </div>
 
@@ -140,39 +202,100 @@ function App() {
           {/* Divider */}
           <div className="border-t border-[rgba(255,255,255,0.1)] pt-6">
             <h2 className="text-lg font-semibold text-content-primary mb-4">
-              Web Search (Exa AI)
+              Web Search Provider
             </h2>
             <p className="text-sm text-content-secondary mb-4">
-              Configure Exa AI for web search capabilities. The AI will search for additional context when explaining terms.
+              Choose a web search provider for additional context when explaining terms. Each provider has different pricing and capabilities. You can configure keys for multiple providers and switch between them.
             </p>
           </div>
 
-          {/* Exa API Key */}
+          {/* Search Provider Selection */}
           <div>
-            <label htmlFor="exaApiKey" className="block text-sm font-medium text-content-secondary mb-2">
-              Exa API Key
+            <label htmlFor="searchProvider" className="block text-sm font-medium text-content-secondary mb-2">
+              Search Provider
             </label>
-            <input
-              type="password"
-              id="exaApiKey"
-              value={exaApiKey}
-              onChange={(e) => setExaApiKey(e.target.value)}
-              placeholder="exa-..."
-              className="w-full px-4 py-2 bg-surface-tertiary border border-[rgba(255,255,255,0.1)] rounded-md text-content-primary placeholder:text-content-tertiary focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-fast"
-            />
+            <select
+              id="searchProvider"
+              value={searchProvider}
+              onChange={(e) => setSearchProvider(e.target.value as SearchProviderType)}
+              className="w-full px-4 py-2 bg-surface-tertiary border border-[rgba(255,255,255,0.1)] rounded-md text-content-primary focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-fast"
+            >
+              {Object.entries(SEARCH_PROVIDERS).map(([key, provider]) => (
+                <option key={key} value={key}>
+                  {provider.name}
+                </option>
+              ))}
+            </select>
             <p className="mt-1 text-sm text-content-tertiary">
-              Your Exa API key for web search (get one at{' '}
               <a
-                href="https://exa.ai"
+                href={currentSearchProvider.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-brand hover:text-brand-light underline"
               >
-                exa.ai
+                Learn more about {currentSearchProvider.name}
               </a>
-              )
             </p>
           </div>
+
+          {/* Current Provider API Key */}
+          <div>
+            <label htmlFor="currentProviderApiKey" className="block text-sm font-medium text-content-secondary mb-2">
+              {currentSearchProvider.name} API Key
+            </label>
+            <input
+              type="password"
+              id="currentProviderApiKey"
+              value={getCurrentApiKey()}
+              onChange={(e) => setCurrentApiKey(e.target.value)}
+              placeholder={currentSearchProvider.keyPlaceholder}
+              className="w-full px-4 py-2 bg-surface-tertiary border border-[rgba(255,255,255,0.1)] rounded-md text-content-primary placeholder:text-content-tertiary focus:ring-2 focus:ring-brand focus:border-brand transition-all duration-fast"
+            />
+            <p className="mt-1 text-sm text-content-tertiary">
+              Your {currentSearchProvider.name} API key for web search. You can configure multiple providers and switch between them anytime.
+            </p>
+          </div>
+
+          {/* All Configured Keys Summary */}
+          {(exaApiKey || linkupApiKey || tavilyApiKey || firecrawlApiKey || perplexityApiKey) && (
+            <div className="bg-surface-tertiary border border-[rgba(255,255,255,0.05)] rounded-lg p-4">
+              <h3 className="text-sm font-medium text-content-secondary mb-2">
+                Configured API Keys
+              </h3>
+              <div className="space-y-1">
+                {exaApiKey && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-content-tertiary">Exa AI</span>
+                    <span className="text-brand">{exaApiKey === searchProvider ? 'Active' : 'Saved'}</span>
+                  </div>
+                )}
+                {linkupApiKey && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-content-tertiary">Linkup</span>
+                    <span className="text-brand">{linkupApiKey === searchProvider ? 'Active' : 'Saved'}</span>
+                  </div>
+                )}
+                {tavilyApiKey && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-content-tertiary">Tavily</span>
+                    <span className="text-brand">{tavilyApiKey === searchProvider ? 'Active' : 'Saved'}</span>
+                  </div>
+                )}
+                {firecrawlApiKey && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-content-tertiary">Firecrawl</span>
+                    <span className="text-brand">{firecrawlApiKey === searchProvider ? 'Active' : 'Saved'}</span>
+                  </div>
+                )}
+                {perplexityApiKey && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-content-tertiary">Perplexity</span>
+                    <span className="text-brand">{perplexityApiKey === searchProvider ? 'Active' : 'Saved'}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Save Button */}
           <div className="pt-4">

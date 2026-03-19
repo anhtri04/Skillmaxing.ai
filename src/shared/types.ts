@@ -27,10 +27,35 @@ export interface Settings {
   apiKey: string
   baseURL: string
   model: string
+  searchProvider: 'exa' | 'linkup' | 'tavily' | 'firecrawl' | 'perplexity'
   exaApiKey: string
+  linkupApiKey: string
+  tavilyApiKey: string
+  firecrawlApiKey: string
+  perplexityApiKey: string
 }
 
-export interface ExaSearchResult {
+export function getSearchApiKey(settings: Settings): string {
+  switch (settings.searchProvider) {
+    case 'exa':
+      return settings.exaApiKey
+    case 'linkup':
+      return settings.linkupApiKey
+    case 'tavily':
+      return settings.tavilyApiKey
+    case 'firecrawl':
+      return settings.firecrawlApiKey
+    case 'perplexity':
+      return settings.perplexityApiKey
+    default:
+      return settings.exaApiKey
+  }
+}
+
+// Web Search Provider Types
+export type SearchProviderType = 'exa' | 'linkup' | 'tavily' | 'firecrawl' | 'perplexity'
+
+export interface SearchResult {
   id: string
   title: string
   url: string
@@ -39,3 +64,10 @@ export interface ExaSearchResult {
   publishedDate?: string
   author?: string
 }
+
+export interface WebSearchProvider {
+  name: string
+  search(query: string, apiKey: string, numResults?: number): Promise<SearchResult[]>
+}
+
+

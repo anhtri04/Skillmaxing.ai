@@ -3,7 +3,8 @@ import { z } from 'zod'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
 import { MESSAGE_TYPES, STORAGE_KEYS, SYSTEM_PROMPT } from '../shared/constants'
 import type { PageContent, Settings } from '../shared/types'
-import { searchWithExa } from './exa-search'
+import { getSearchApiKey } from '../shared/types'
+import { getSearchProvider } from './search-providers'
 
 console.log('Skillmaxing.ai background script loaded')
 
@@ -155,20 +156,22 @@ chrome.runtime.onConnect.addListener((port) => {
                 execute: async ({ query }: { query: string }) => {
                   console.log('[Skillmaxing:Tool] web_search tool called with query:', query);
                   
-                  if (!settings.exaApiKey) {
-                    console.log('[Skillmaxing:Tool] Exa API key not configured, returning error');
-                    return { results: [], error: 'Exa API key not configured' };
+                  const searchApiKey = getSearchApiKey(settings);
+                  if (!searchApiKey) {
+                    console.log('[Skillmaxing:Tool] Search API key not configured, returning error');
+                    return { results: [], error: 'Search API key not configured' };
                   }
                   
                   try {
-                    console.log('[Skillmaxing:Tool] Calling Exa API...');
-                    const results = await searchWithExa(query, settings.exaApiKey, 5);
-                    console.log('[Skillmaxing:Tool] Exa search returned', results.length, 'results');
+                    console.log('[Skillmaxing:Tool] Calling search provider:', settings.searchProvider || 'exa');
+                    const provider = getSearchProvider(settings.searchProvider || 'exa');
+                    const results = await provider.search(query, searchApiKey, 5);
+                    console.log('[Skillmaxing:Tool] Search returned', results.length, 'results');
                     console.log('[Skillmaxing:Tool] First result:', results[0]);
                     return { results };
                   } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
-                    console.error('[Skillmaxing:Tool] Exa search error:', error);
+                    console.error('[Skillmaxing:Tool] Search error:', error);
                     return { results: [], error: errorMessage };
                   }
                 },
@@ -259,7 +262,12 @@ async function getSettings(): Promise<Settings> {
           apiKey: '',
           baseURL: '',
           model: '',
+          searchProvider: 'exa',
           exaApiKey: '',
+          linkupApiKey: '',
+          tavilyApiKey: '',
+          firecrawlApiKey: '',
+          perplexityApiKey: '',
         })
       }
     })
