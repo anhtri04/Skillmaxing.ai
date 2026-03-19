@@ -90,6 +90,14 @@ function App() {
   // Auto-trigger explanation when term is received
   useEffect(() => {
     if (pendingTerm && !hasExplained && !isLoading) {
+      // Check if term was already explained on this page
+      const normalizedTerm = pendingTerm.toLowerCase().trim()
+      if (explainedTerms.has(normalizedTerm)) {
+        console.log(`[Skillmaxing:AutoExplain] Term "${pendingTerm}" already explained, skipping`)
+        setHasExplained(true) // Mark as explained so UI shows existing conversation
+        return
+      }
+      
       // Prevent duplicate API calls for the same term
       if (lastExplainedTermRef.current === pendingTerm) {
         return
@@ -98,7 +106,7 @@ function App() {
       setHasExplained(true)
       sendExplanation(pendingTerm, pageTitle, pageContent)
     }
-  }, [pendingTerm, hasExplained, isLoading, pageTitle, pageContent])
+  }, [pendingTerm, hasExplained, isLoading, pageTitle, pageContent, explainedTerms])
 
   const loadConversation = async (pageUrl: string) => {
     if (!pageUrl) return
