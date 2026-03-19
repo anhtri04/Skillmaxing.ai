@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MESSAGE_TYPES, STORAGE_KEYS } from '../shared/constants'
+import { normalizeUrl } from '../shared/url-utils'
 import type { ExtensionMessage } from '../shared/types'
 import { AssistantMessage } from './components/AssistantMessage'
 import { UserMessage } from './components/UserMessage'
@@ -97,10 +98,21 @@ function App() {
     }
   }, [pendingTerm, hasExplained, isLoading, pageTitle, pageContent])
 
-  const loadConversation = async (tabId: number) => {
+  const loadConversation = async (pageUrl: string) => {
+    if (!pageUrl) return
+    
+    const normalizedUrl = normalizeUrl(pageUrl)
+    
     try {
-      const result = await chrome.storage.session.get([`conversation-${tabId}`])
-      const savedConversation = result[`conversation-${tabId}`] as { term: string; messages: Message[]; pageTitle: string | null; pageContent: string | null } | undefined
+      const result = await chrome.storage.session.get([STORAGE_KEYS.CONVERSATIONS_MAP])
+      const conversationsMap = (result[STORAGE_KEYS.CONVERSATIONS_MAP] as Record<string, {
+        term: string
+        messages: Message[]
+        pageTitle: string | null
+        pageContent: string | null
+      }>) || {}
+      
+      const savedConversation = conversationsMap[normalizedUrl]
       
       if (savedConversation) {
         setPendingTerm(savedConversation.term)
@@ -114,18 +126,31 @@ function App() {
     }
   }
 
-  const saveConversation = async (tabId: number, msgs: Message[]) => {
-    if (!pendingTerm) return
+  const saveConversation = async (pageUrl: string, msgs: Message[]) => {
+    if (!pageUrl || !pendingTerm) return
+    
+    const normalizedUrl = normalizeUrl(pageUrl)
     
     try {
+      const result = await chrome.storage.session.get([STORAGE_KEYS.CONVERSATIONS_MAP])
+      const conversationsMap = (result[STORAGE_KEYS.CONVERSATIONS_MAP] as Record<string, {
+        term: string
+        messages: Message[]
+        pageTitle: string | null
+        pageContent: string | null
+        timestamp: number
+      }>) || {}
+      
+      conversationsMap[normalizedUrl] = {
+        term: pendingTerm,
+        messages: msgs,
+        pageTitle,
+        pageContent,
+        timestamp: Date.now(),
+      }
+      
       await chrome.storage.session.set({
-        [`conversation-${tabId}`]: {
-          term: pendingTerm,
-          messages: msgs,
-          pageTitle,
-          pageContent,
-          timestamp: Date.now(),
-        }
+        [STORAGE_KEYS.CONVERSATIONS_MAP]: conversationsMap
       })
     } catch (error) {
       console.error('Error saving conversation:', error)
