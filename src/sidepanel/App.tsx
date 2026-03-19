@@ -26,6 +26,7 @@ function App() {
   const portRef = useRef<chrome.runtime.Port | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const lastExplainedTermRef = useRef<string | null>(null)
+  const [explainedTerms, setExplainedTerms] = useState<Set<string>>(new Set())
 
   // Get current tab ID and URL
   useEffect(() => {
@@ -121,6 +122,15 @@ function App() {
         setPageTitle(savedConversation.pageTitle)
         setPageContent(savedConversation.pageContent)
         setHasExplained(true)
+        
+        // Restore explained terms from message history
+        const terms = new Set<string>()
+        savedConversation.messages.forEach(msg => {
+          if (msg.role === 'user') {
+            terms.add(msg.content.toLowerCase().trim())
+          }
+        })
+        setExplainedTerms(terms)
       }
     } catch (error) {
       console.error('Error loading conversation:', error)
@@ -140,6 +150,7 @@ function App() {
         pageTitle: string | null
         pageContent: string | null
         timestamp: number
+        explainedTerms?: string[]
       }>) || {}
       
       conversationsMap[normalizedUrl] = {
@@ -148,6 +159,7 @@ function App() {
         pageTitle,
         pageContent,
         timestamp: Date.now(),
+        explainedTerms: Array.from(explainedTerms),
       }
       
       await chrome.storage.session.set({
@@ -173,6 +185,17 @@ function App() {
 
   const sendMessage = useCallback(async (content: string, isInitial = false) => {
     if (!pendingTerm) return
+    
+    // Check for duplicate term (case-insensitive)
+    if (isInitial) {
+      const normalizedTerm = pendingTerm.toLowerCase().trim()
+      if (explainedTerms.has(normalizedTerm)) {
+        console.log(`[Skillmaxing] Term "${pendingTerm}" already explained on this page`)
+        return
+      }
+      // Add to explained terms
+      setExplainedTerms(prev => new Set([...prev, normalizedTerm]))
+    }
     
     setIsLoading(true)
     setError(null)
@@ -255,7 +278,7 @@ function App() {
       }
       portRef.current = null
     })
-  }, [pendingTerm, pageTitle, pageContent, messages])
+  }, [pendingTerm, pageTitle, pageContent, messages, explainedTerms])
 
   const sendExplanation = async (term: string, _title: string | null, _content: string | null) => {
     await sendMessage(`Please explain "${term}"`, true)
