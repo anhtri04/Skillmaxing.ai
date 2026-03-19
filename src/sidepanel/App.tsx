@@ -21,19 +21,17 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [hasExplained, setHasExplained] = useState(false)
-  const [currentTabId, setCurrentTabId] = useState<number | null>(null)
   const [currentPageUrl, setCurrentPageUrl] = useState<string | null>(null)
   const portRef = useRef<chrome.runtime.Port | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const lastExplainedTermRef = useRef<string | null>(null)
   const [explainedTerms, setExplainedTerms] = useState<Set<string>>(new Set())
 
-  // Get current tab ID and URL
+  // Get current page URL
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
-        setCurrentTabId(tabs[0].id)
-        setCurrentPageUrl(tabs[0].url || null)
+      if (tabs[0]?.url) {
+        setCurrentPageUrl(tabs[0].url)
       }
     })
   }, [])
