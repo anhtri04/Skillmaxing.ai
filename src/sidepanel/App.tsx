@@ -171,8 +171,14 @@ function App() {
   }
 
   const clearConversation = () => {
-    if (currentTabId !== null) {
-      chrome.storage.session.remove([`conversation-${currentTabId}`])
+    if (currentPageUrl) {
+      const normalizedUrl = normalizeUrl(currentPageUrl)
+      // Remove this URL's conversation from the map
+      chrome.storage.session.get([STORAGE_KEYS.CONVERSATIONS_MAP]).then(result => {
+        const conversationsMap = (result[STORAGE_KEYS.CONVERSATIONS_MAP] as Record<string, unknown>) || {}
+        delete conversationsMap[normalizedUrl]
+        chrome.storage.session.set({ [STORAGE_KEYS.CONVERSATIONS_MAP]: conversationsMap })
+      })
     }
     setPendingTerm(null)
     setMessages([])
@@ -181,6 +187,7 @@ function App() {
     setPageTitle(null)
     setPageContent(null)
     lastExplainedTermRef.current = null
+    setExplainedTerms(new Set())
   }
 
   const sendMessage = useCallback(async (content: string, isInitial = false) => {
