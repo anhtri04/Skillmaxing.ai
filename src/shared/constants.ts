@@ -13,6 +13,7 @@ export const MESSAGE_TYPES = {
 export const STORAGE_KEYS = {
   SETTINGS: 'skillmaxing-settings',
   CONVERSATIONS: 'skillmaxing-conversations',
+  CONVERSATIONS_MAP: 'skillmaxing-conversations-map',
 } as const
 
 // System prompt for the AI
