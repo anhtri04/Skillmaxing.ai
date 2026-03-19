@@ -27,15 +27,6 @@ function App() {
   const lastExplainedTermRef = useRef<string | null>(null)
   const [explainedTerms, setExplainedTerms] = useState<Set<string>>(new Set())
 
-  // Get current page URL
-  useEffect(() => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.url) {
-        setCurrentPageUrl(tabs[0].url)
-      }
-    })
-  }, [])
-
   // Load conversation from storage when page URL changes
   useEffect(() => {
     if (currentPageUrl) {
@@ -133,10 +124,24 @@ function App() {
         const terms = new Set<string>()
         savedConversation.messages.forEach(msg => {
           if (msg.role === 'user') {
-            terms.add(msg.content.toLowerCase().trim())
+            // Extract term from "Please explain \"term\"" format
+            const match = msg.content.match(/please explain "([^"]+)"/i)
+            if (match) {
+              terms.add(match[1].toLowerCase().trim())
+            } else {
+              // For follow-up messages or other formats, use full content
+              terms.add(msg.content.toLowerCase().trim())
+            }
           }
         })
         setExplainedTerms(terms)
+      } else {
+        // No saved conversation for this URL - start fresh
+        setPendingTerm(null)
+        setMessages([])
+        setHasExplained(false)
+        setExplainedTerms(new Set())
+        lastExplainedTermRef.current = null
       }
     } catch (error) {
       console.error('Error loading conversation:', error)
