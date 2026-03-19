@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { MESSAGE_TYPES, STORAGE_KEYS } from '../shared/constants'
+import { normalizeUrl } from '../shared/url-utils'
 import type { ExtensionMessage } from '../shared/types'
 import { AssistantMessage } from './components/AssistantMessage'
 import { UserMessage } from './components/UserMessage'
@@ -20,35 +21,34 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [hasExplained, setHasExplained] = useState(false)
-  const [currentTabId, setCurrentTabId] = useState<number | null>(null)
   const [currentPageUrl, setCurrentPageUrl] = useState<string | null>(null)
   const portRef = useRef<chrome.runtime.Port | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const lastExplainedTermRef = useRef<string | null>(null)
+  const [explainedTerms, setExplainedTerms] = useState<Set<string>>(new Set())
 
-  // Get current tab ID and URL
+  // Get current page URL
   useEffect(() => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
-        setCurrentTabId(tabs[0].id)
-        setCurrentPageUrl(tabs[0].url || null)
+      if (tabs[0]?.url) {
+        setCurrentPageUrl(tabs[0].url)
       }
     })
   }, [])
 
-  // Load conversation from storage when tab changes
+  // Load conversation from storage when page URL changes
   useEffect(() => {
-    if (currentTabId !== null) {
-      loadConversation(currentTabId)
+    if (currentPageUrl) {
+      loadConversation(currentPageUrl)
     }
-  }, [currentTabId])
+  }, [currentPageUrl])
 
   // Save conversation to storage when messages change
   useEffect(() => {
-    if (currentTabId !== null && messages.length > 0) {
-      saveConversation(currentTabId, messages)
+    if (currentPageUrl && messages.length > 0) {
+      saveConversation(currentPageUrl, messages)
     }
-  }, [messages, currentTabId])
+  }, [messages, currentPageUrl])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -62,11 +62,12 @@ function App() {
         const newTerm = msg.term || null
         const newPageUrl = msg.pageUrl || null
 
-        // Check if we're on a different page - if so, clear conversation
+        // Check if we're on a different page - load conversation for new URL
         if (newPageUrl && newPageUrl !== currentPageUrl) {
-          setMessages([])
           setCurrentPageUrl(newPageUrl)
           lastExplainedTermRef.current = null
+          // Load conversation for new URL (will restore if exists, or set empty state)
+          loadConversation(newPageUrl)
         }
 
         // Only reset hasExplained if it's a different term
@@ -87,6 +88,14 @@ function App() {
   // Auto-trigger explanation when term is received
   useEffect(() => {
     if (pendingTerm && !hasExplained && !isLoading) {
+      // Check if term was already explained on this page
+      const normalizedTerm = pendingTerm.toLowerCase().trim()
+      if (explainedTerms.has(normalizedTerm)) {
+        console.log(`[Skillmaxing:AutoExplain] Term "${pendingTerm}" already explained, skipping`)
+        setHasExplained(true) // Mark as explained so UI shows existing conversation
+        return
+      }
+      
       // Prevent duplicate API calls for the same term
       if (lastExplainedTermRef.current === pendingTerm) {
         return
@@ -95,12 +104,23 @@ function App() {
       setHasExplained(true)
       sendExplanation(pendingTerm, pageTitle, pageContent)
     }
-  }, [pendingTerm, hasExplained, isLoading, pageTitle, pageContent])
+  }, [pendingTerm, hasExplained, isLoading, pageTitle, pageContent, explainedTerms])
 
-  const loadConversation = async (tabId: number) => {
+  const loadConversation = async (pageUrl: string) => {
+    if (!pageUrl) return
+    
+    const normalizedUrl = normalizeUrl(pageUrl)
+    
     try {
-      const result = await chrome.storage.session.get([`conversation-${tabId}`])
-      const savedConversation = result[`conversation-${tabId}`] as { term: string; messages: Message[]; pageTitle: string | null; pageContent: string | null } | undefined
+      const result = await chrome.storage.session.get([STORAGE_KEYS.CONVERSATIONS_MAP])
+      const conversationsMap = (result[STORAGE_KEYS.CONVERSATIONS_MAP] as Record<string, {
+        term: string
+        messages: Message[]
+        pageTitle: string | null
+        pageContent: string | null
+      }>) || {}
+      
+      const savedConversation = conversationsMap[normalizedUrl]
       
       if (savedConversation) {
         setPendingTerm(savedConversation.term)
@@ -108,24 +128,48 @@ function App() {
         setPageTitle(savedConversation.pageTitle)
         setPageContent(savedConversation.pageContent)
         setHasExplained(true)
+        
+        // Restore explained terms from message history
+        const terms = new Set<string>()
+        savedConversation.messages.forEach(msg => {
+          if (msg.role === 'user') {
+            terms.add(msg.content.toLowerCase().trim())
+          }
+        })
+        setExplainedTerms(terms)
       }
     } catch (error) {
       console.error('Error loading conversation:', error)
     }
   }
 
-  const saveConversation = async (tabId: number, msgs: Message[]) => {
-    if (!pendingTerm) return
+  const saveConversation = async (pageUrl: string, msgs: Message[]) => {
+    if (!pageUrl || !pendingTerm) return
+    
+    const normalizedUrl = normalizeUrl(pageUrl)
     
     try {
+      const result = await chrome.storage.session.get([STORAGE_KEYS.CONVERSATIONS_MAP])
+      const conversationsMap = (result[STORAGE_KEYS.CONVERSATIONS_MAP] as Record<string, {
+        term: string
+        messages: Message[]
+        pageTitle: string | null
+        pageContent: string | null
+        timestamp: number
+        explainedTerms?: string[]
+      }>) || {}
+      
+      conversationsMap[normalizedUrl] = {
+        term: pendingTerm,
+        messages: msgs,
+        pageTitle,
+        pageContent,
+        timestamp: Date.now(),
+        explainedTerms: Array.from(explainedTerms),
+      }
+      
       await chrome.storage.session.set({
-        [`conversation-${tabId}`]: {
-          term: pendingTerm,
-          messages: msgs,
-          pageTitle,
-          pageContent,
-          timestamp: Date.now(),
-        }
+        [STORAGE_KEYS.CONVERSATIONS_MAP]: conversationsMap
       })
     } catch (error) {
       console.error('Error saving conversation:', error)
@@ -133,8 +177,14 @@ function App() {
   }
 
   const clearConversation = () => {
-    if (currentTabId !== null) {
-      chrome.storage.session.remove([`conversation-${currentTabId}`])
+    if (currentPageUrl) {
+      const normalizedUrl = normalizeUrl(currentPageUrl)
+      // Remove this URL's conversation from the map
+      chrome.storage.session.get([STORAGE_KEYS.CONVERSATIONS_MAP]).then(result => {
+        const conversationsMap = (result[STORAGE_KEYS.CONVERSATIONS_MAP] as Record<string, unknown>) || {}
+        delete conversationsMap[normalizedUrl]
+        chrome.storage.session.set({ [STORAGE_KEYS.CONVERSATIONS_MAP]: conversationsMap })
+      })
     }
     setPendingTerm(null)
     setMessages([])
@@ -143,10 +193,22 @@ function App() {
     setPageTitle(null)
     setPageContent(null)
     lastExplainedTermRef.current = null
+    setExplainedTerms(new Set())
   }
 
   const sendMessage = useCallback(async (content: string, isInitial = false) => {
     if (!pendingTerm) return
+    
+    // Check for duplicate term (case-insensitive)
+    if (isInitial) {
+      const normalizedTerm = pendingTerm.toLowerCase().trim()
+      if (explainedTerms.has(normalizedTerm)) {
+        console.log(`[Skillmaxing] Term "${pendingTerm}" already explained on this page`)
+        return
+      }
+      // Add to explained terms
+      setExplainedTerms(prev => new Set([...prev, normalizedTerm]))
+    }
     
     setIsLoading(true)
     setError(null)
@@ -229,7 +291,7 @@ function App() {
       }
       portRef.current = null
     })
-  }, [pendingTerm, pageTitle, pageContent, messages])
+  }, [pendingTerm, pageTitle, pageContent, messages, explainedTerms])
 
   const sendExplanation = async (term: string, _title: string | null, _content: string | null) => {
     await sendMessage(`Please explain "${term}"`, true)
