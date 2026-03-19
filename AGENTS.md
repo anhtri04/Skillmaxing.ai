@@ -1,155 +1,132 @@
 ## Project overview
 
-**Skillmaxing.ai** is a Chrome extension that helps users understand unfamiliar terms
-while reading articles, blog posts, or social media. The workflow is:
-
-1. User selects a term on any webpage
-2. Right-clicks → chooses "Explain with Skillmaxing"
-3. A Chrome side panel opens on the right
-4. An AI agent explains the selected term **in the context of the page being read**,
-   with optional web search for additional sources
-5. User can ask follow-up questions in a persistent chat thread
+**Skillmaxing.ai** is a Chrome extension that helps users understand unfamiliar terms while reading articles, blog posts, or social media. When users select text and right-click, a side panel opens with an AI-powered explanation in context.
 
 ---
 
-## Tech stack
+## Build commands
 
-| Layer | Choice |
-|---|---|
-| Extension standard | Chrome Manifest V3 |
-| Bundler | Vite + `@crxjs/vite-plugin` |
-| UI framework | React + TypeScript |
-| Styling | Tailwind CSS |
-| AI streaming — background | `ai` (Vercel AI SDK core) + `@ai-sdk/openai` — `streamText()` |
-| AI streaming — side panel | `@ai-sdk/react` — `useChat()` with custom port transport |
-| Provider switching | `createOpenAI({ baseURL, apiKey })` — any OpenAI-compatible API |
-| Model | Configurable — stored in `chrome.storage.local` |
-| Markdown rendering | `react-markdown` + `remark-gfm` (for assistant messages) |
-| Page extraction | `@mozilla/readability` |
-| Transport layer | `chrome.runtime.Port` (bridges `useChat` ↔ background worker) |
-| Persistence | `chrome.storage.local` (settings) + `chrome.storage.session` (chat state) |
+```bash
+npm run dev          # Development server with hot reload
+npm run build        # TypeScript check + production build
+npm run preview      # Preview production build locally
+```
+
+---
+
+## Code style guidelines
+
+### TypeScript
+- Strict mode enabled — no implicit any, unused locals/parameters checked
+- Use explicit types for function parameters and return types
+- Prefer `type` over `interface` for simple shapes
+- Use `interface` for extensible object types
+
+### Imports
+- Group imports: React → external libs → internal modules → types
+- Use absolute imports from `src/` root
+- Always use `import type { ... }` for type-only imports
+- Order: side effects first, then named imports
+
+### Naming conventions
+- **Components**: PascalCase (`AssistantMessage.tsx`)
+- **Functions/variables**: camelCase (`sendMessage`, `isLoading`)
+- **Constants**: UPPER_SNAKE_CASE for true constants (`MESSAGE_TYPES`)
+- **Types/Interfaces**: PascalCase (`ExtensionMessage`, `Settings`)
+- **Files**: kebab-case for non-component files, PascalCase for components
+
+### Formatting
+- 2 spaces for indentation
+- Single quotes for strings
+- Trailing commas in multiline objects/arrays
+- Max line length: 100 characters (soft limit)
+- Semicolons: optional but be consistent within a file
+
+### Error handling
+- Always handle `chrome.runtime.lastError` after async Chrome API calls
+- Use try/catch for async operations with meaningful error messages
+- Log errors with context using `[Skillmaxing:Context]` prefix format
+- Propagate user-facing errors to UI with clear messaging
+
+### Logging
+- Use structured logging with prefixes: `[Skillmaxing:Flow]`, `[Skillmaxing:Stream]`, `[Skillmaxing:Retry]`
+- Include relevant context (tabId, url, duration) in log objects
+- Avoid logging sensitive data (API keys, tokens)
+
+### React patterns
+- Use functional components with hooks
+- Prefer `useCallback` for handlers passed to children
+- Use `useRef` for mutable values that don't trigger re-renders
+- Clean up effects and event listeners in return functions
+
+### Chrome extension rules
+- Never store API keys in content scripts — only in background service worker
+- Always read settings from `chrome.storage.local` in background
+- Use `chrome.runtime.Port` for streaming between contexts
+- Clone DOM with `document.cloneNode(true)` before Readability extraction
+- Truncate page content to 4000 characters before AI prompts
+
+---
+
+## Testing
+
+No test framework is currently configured. If adding tests:
+
+```bash
+# Install and configure Vitest (recommended for Vite projects)
+npm install -D vitest @testing-library/react @testing-library/jest-dom jsdom
+
+# Run all tests
+npx vitest
+
+# Run single test file
+npx vitest run src/path/to/test.ts
+
+# Run tests in watch mode
+npx vitest --watch
+```
 
 ---
 
 ## Project structure
 
 ```
-skillmaxing/
-├── CLAUDE.md                  ← You are here
-├── PHASES.md                  ← Phase-by-phase progress tracker
-├── manifest.json              ← Chrome MV3 extension config
-├── vite.config.ts             ← crxjs plugin + entry points
-├── tailwind.config.ts
-├── tsconfig.json
-├── src/
-│   ├── sidepanel/
-│   │   ├── index.html         ← Side panel HTML shell
-│   │   ├── main.tsx           ← React entry point
-│   │   ├── App.tsx            ← Root component, message listener
-│   │   └── components/
-│   │       ├── TermHeader.tsx
-│   │       ├── MessageList.tsx
-│   │       ├── AssistantMessage.tsx
-│   │       ├── UserMessage.tsx
-│   │       ├── StreamingIndicator.tsx
-│   │       └── FollowUpInput.tsx
-│   ├── background/
-│   │   └── index.ts           ← Service worker: context menu, API calls, port streaming
-│   ├── content/
-│   │   └── index.ts           ← Content script: page extraction via Readability
-│   ├── options/
-│   │   ├── index.html         ← Extension options page
-│   │   └── main.tsx           ← API key, baseURL, model input + settings
-│   └── shared/
-│       ├── types.ts           ← Shared Message, ExtensionMessage types
-│       └── constants.ts       ← Message type strings, storage keys
-└── public/
-    └── icons/                 ← 16, 32, 48, 128px PNGs
-```
-
----
-
-## Architecture: how the three contexts communicate
-
-Chrome MV3 splits the extension into isolated worlds. Communication is always
-via message passing — never shared memory or direct imports across contexts.
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  WEBPAGE (any tab)                                          │
-│                                                             │
-│  content/index.ts                                           │
-│  - Runs on every page via content_scripts manifest entry    │
-│  - Listens for GET_PAGE_CONTENT message                     │
-│  - Uses Readability to extract clean article text           │
-│  - Returns { title, content } (content truncated to 4000ch) │
-└───────────────────┬─────────────────────────────────────────┘
-                    │ chrome.tabs.sendMessage / onMessage
-┌───────────────────▼─────────────────────────────────────────┐
-│  BACKGROUND SERVICE WORKER                                  │
-│                                                             │
-│  background/index.ts                                        │
-│  - Registers context menu on install                        │
-│  - On menu click: fetches page content, opens side panel,   │
-│    then streams AI response via Port                        │
-│  - Reads apiKey, baseURL, model from chrome.storage.local   │
-│  - Uses Vercel AI SDK: createOpenAI() + streamText()        │
-│  - Pipes streamText chunks → port.postMessage() to panel    │
-└───────────────────┬─────────────────────────────────────────┘
-                    │ chrome.runtime.Port (persistent)
-                    │ custom fetch transport bridges Port ↔ useChat
-┌───────────────────▼─────────────────────────────────────────┐
-│  SIDE PANEL (React app)                                     │
-│                                                             │
-│  sidepanel/App.tsx                                          │
-│  - useChat() from @ai-sdk/react manages all chat state      │
-│  - Custom fetch override routes through chrome.runtime.Port │
-│  - Renders streamed markdown via react-markdown             │
-│  - Follow-up input wired directly to useChat's append()     │
-└─────────────────────────────────────────────────────────────┘
+src/
+├── background/          # Service worker (MV3)
+│   ├── index.ts        # Main background script
+│   └── search-providers/ # Web search implementations
+├── content/            # Content script injected into pages
+│   └── index.ts
+├── sidepanel/          # React app for side panel UI
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── components/
+├── options/            # Extension options page
+│   └── App.tsx
+└── shared/             # Shared across all contexts
+    ├── types.ts
+    └── constants.ts
 ```
 
 ---
 
 ## Key implementation rules
 
-- **Never** put the API key in the content script. It must only be read from
-  `chrome.storage.local` inside `background/index.ts`.
-- **Never** hardcode `apiKey`, `baseURL`, or `model` — always read from storage.
-- **Never** import `@ai-sdk/react` in the background worker — service workers have
-  no React context. Only import `ai` and `@ai-sdk/openai` there.
-- **Always** use `streamText` (not `generateText`) in the background worker so
-  chunks are forwarded to the port as they arrive.
-- **Always** truncate page content to 4000 characters before including in prompts.
-- **Always** clone `document` before passing to Readability: `document.cloneNode(true)`.
-- **Never** use `position: fixed` in the side panel UI (iframes don't support it well).
-- Side panel must signal `PANEL_READY` before the background worker sends `EXPLAIN_TERM`.
-  Use a 300ms delay or a proper handshake to avoid the race condition on first open.
-- `useChat` message history is the single source of truth — do not maintain a
-  separate `Message[]` array alongside it.
-- Conversation history is persisted per-tab in `chrome.storage.session`, keyed by
-  `tabId`, and hydrated back into `useChat` via its `initialMessages` option.
-- The options page (`src/options/`) handles `apiKey`, `baseURL`, and `model` — never commit keys.
+- **API keys**: Only accessed in `background/index.ts` via `chrome.storage.local`
+- **Streaming**: Use `streamText` from Vercel AI SDK, pipe chunks through Port
+- **AI SDK**: Use `@ai-sdk/react` only in side panel, `ai` + `@ai-sdk/openai` only in background
+- **Storage**: Settings in `chrome.storage.local`, chat state in `chrome.storage.session`
+- **Content extraction**: Always clone document before Readability, truncate to 4000 chars
+- **Race conditions**: Side panel signals ready before background sends messages (use 300ms delay)
 
 ---
 
 ## Phase progress
 
-See **[PHASES.md](./PHASES.md)** for the detailed phase tracker.
-
-Current status is tracked there — always check PHASES.md before starting work
-to understand what is complete, what is in progress, and what comes next.
-
-### Quick summary
+See [PHASES.md](./PHASES.md) for detailed tracker.
 
 | Phase | Name | Status |
 |---|---|---|
-| 0 | Project scaffold | Done |
-| 1 | Right-click → open side panel | ⬜ Not started |
-| 2 | Page content extraction | ⬜ Not started |
-| 3 | AI API + streaming | ⬜ Not started |
-| 4 | Conversation (follow-ups) | ⬜ Not started |
-| 5 | API key settings + polish | ⬜ Not started |
-| 6 | Backend + productization | ⬜ Not started |
-
-Update PHASES.md (not this file) when phase status changes.
+| 0-4 | Core features | Done |
+| 5 | API key settings + polish | In progress |
+| 6 | Backend + productization | Not started |
