@@ -25,14 +25,8 @@ function App() {
   const portRef = useRef<chrome.runtime.Port | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const lastExplainedTermRef = useRef<string | null>(null)
+  const incomingTermRef = useRef<string | null>(null)
   const [explainedTerms, setExplainedTerms] = useState<Set<string>>(new Set())
-
-  // Load conversation from storage when page URL changes
-  useEffect(() => {
-    if (currentPageUrl) {
-      loadConversation(currentPageUrl)
-    }
-  }, [currentPageUrl])
 
   // Save conversation to storage when messages change
   useEffect(() => {
@@ -49,16 +43,23 @@ function App() {
   // Listen for messages from background script
   useEffect(() => {
     const handler = async (msg: ExtensionMessage & { tabId?: number; pageUrl?: string }) => {
+      console.log('[Skillmaxing:SidePanel] Message received:', msg.type, 'term:', msg.term)
       if (msg.type === MESSAGE_TYPES.EXPLAIN_TERM) {
         const newTerm = msg.term || null
         const newPageUrl = msg.pageUrl || null
 
+        console.log('[Skillmaxing:SidePanel] newTerm:', newTerm, 'currentPageUrl:', currentPageUrl)
+
         // Check if we're on a different page - load conversation for new URL
         if (newPageUrl && newPageUrl !== currentPageUrl) {
+          console.log('[Skillmaxing:SidePanel] URL changed from', currentPageUrl, 'to', newPageUrl)
           setCurrentPageUrl(newPageUrl)
           lastExplainedTermRef.current = null
+          incomingTermRef.current = newTerm
+          console.log('[Skillmaxing:SidePanel] Set incomingTermRef =', newTerm)
           // Load conversation for new URL (will restore if exists, or set empty state)
           await loadConversation(newPageUrl)
+          console.log('[Skillmaxing:SidePanel] loadConversation returned')
         }
 
         // Only reset hasExplained if it's a different term
@@ -78,7 +79,9 @@ function App() {
 
   // Auto-trigger explanation when term is received
   useEffect(() => {
+    console.log('[Skillmaxing:AutoTrigger] Effect running:', { pendingTerm, hasExplained, isLoading, explainedTermsSize: explainedTerms.size })
     if (pendingTerm && !hasExplained && !isLoading) {
+      console.log('[Skillmaxing:AutoTrigger] Conditions met, checking term')
       // Check if term was already explained on this page
       const normalizedTerm = pendingTerm.toLowerCase().trim()
       if (explainedTerms.has(normalizedTerm)) {
@@ -89,11 +92,15 @@ function App() {
       
       // Prevent duplicate API calls for the same term
       if (lastExplainedTermRef.current === pendingTerm) {
+        console.log('[Skillmaxing:AutoTrigger] Term already in lastExplainedTermRef, skipping')
         return
       }
+      console.log('[Skillmaxing:AutoTrigger] Calling sendExplanation for:', pendingTerm)
       lastExplainedTermRef.current = pendingTerm
       setHasExplained(true)
       sendExplanation(pendingTerm, pageTitle, pageContent)
+    } else {
+      console.log('[Skillmaxing:AutoTrigger] Conditions NOT met:', { pendingTerm: !!pendingTerm, hasExplained, isLoading })
     }
   }, [pendingTerm, hasExplained, isLoading, pageTitle, pageContent, explainedTerms])
 
@@ -137,6 +144,14 @@ function App() {
         setExplainedTerms(terms)
       } else {
         // No saved conversation for this URL - start fresh
+        console.log('[Skillmaxing:LoadConv] No saved conversation, checking incomingTermRef:', incomingTermRef.current)
+        if (incomingTermRef.current) {
+          // Don't reset - there's an incoming term to preserve
+          console.log('[Skillmaxing:LoadConv] Preserving incoming term, setting pendingTerm')
+          setPendingTerm(incomingTermRef.current)
+          return
+        }
+        console.log('[Skillmaxing:LoadConv] No incoming term, resetting state')
         setPendingTerm(null)
         setMessages([])
         setHasExplained(false)
