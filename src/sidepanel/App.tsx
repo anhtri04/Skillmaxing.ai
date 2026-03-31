@@ -146,7 +146,12 @@ function App() {
         // No saved conversation for this URL - start fresh
         console.log('[Skillmaxing:LoadConv] No saved conversation, checking incomingTermRef:', incomingTermRef.current)
         if (incomingTermRef.current) {
-          // Don't reset - there's an incoming term to preserve
+          // Clear existing messages before starting new conversation for different page
+          console.log('[Skillmaxing:LoadConv] Clearing messages for new page conversation')
+          setMessages([])
+          setHasExplained(false)
+          setExplainedTerms(new Set())
+          lastExplainedTermRef.current = null
           console.log('[Skillmaxing:LoadConv] Preserving incoming term, setting pendingTerm')
           setPendingTerm(incomingTermRef.current)
           return
