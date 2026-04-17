@@ -6,6 +6,35 @@ import type { PageContent, Settings } from '../shared/types'
 import { getSearchApiKey } from '../shared/types'
 import { getSearchProvider } from './search-providers'
 
+// Detect API provider from baseURL
+function detectApiProvider(baseURL: string): 'groq' | 'openai' | 'other' {
+  if (baseURL.includes('groq')) {
+    return 'groq'
+  }
+  if (baseURL.includes('openai')) {
+    return 'openai'
+  }
+  return 'other'
+}
+
+// Clean messages based on API provider requirements
+function cleanMessagesForProvider(
+  messages: Array<{ role: string; content: unknown; [key: string]: unknown }>
+): Array<{ role: 'user' | 'assistant'; content: string }> {
+  return messages.map((m) => {
+    const contentStr = typeof m.content === 'string' ? m.content : String(m.content);
+    
+    // Create a new object with ONLY role and content
+    // This removes ANY extra properties including reasoning_content, id, etc.
+    const cleaned: { role: 'user' | 'assistant'; content: string } = {
+      role: m.role as 'user' | 'assistant',
+      content: contentStr,
+    };
+
+    return cleaned;
+  });
+}
+
 console.log('Skillmaxing.ai background script loaded')
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -117,31 +146,80 @@ chrome.runtime.onConnect.addListener((port) => {
           // Build system message with context
           const systemMessage = buildSystemMessage(term, pageTitle, pageContent);
           
+          // Detect API provider
+          const baseURL = settings.baseURL || 'https://api.openai.com/v1';
+          const provider = detectApiProvider(baseURL);
+          console.log('[Skillmaxing:Stream] Detected API provider:', provider, 'baseURL:', baseURL);
+          
           // Create OpenAI-compatible client for Groq/custom endpoints
           const openai = createOpenAICompatible({
             name: 'custom-provider',
             apiKey: settings.apiKey,
-            baseURL: settings.baseURL || 'https://api.openai.com/v1',
+            baseURL: baseURL,
           });
           
-          // Map messages to CoreMessage format, filtering out empty messages
-          const coreMessages = [
-            { role: 'system' as const, content: systemMessage },
-            ...messages
-              .filter((m: { role: string; content: unknown }) => {
-                const contentStr = typeof m.content === 'string' ? m.content : String(m.content);
-                return contentStr.trim() !== '';
-              })
-              .map((m: { role: string; content: unknown }) => {
-                const contentStr = typeof m.content === 'string' ? m.content : String(m.content);
-                return {
-                  role: m.role as 'user' | 'assistant',
-                  content: contentStr,
-                };
-              }),
-          ];
+          // Map messages to CoreMessage format, filtering out empty messages and unsupported properties
+          const cleanedMessages = cleanMessagesForProvider(
+            messages.filter((m: { role: string; content: unknown }) => {
+              const contentStr = typeof m.content === 'string' ? m.content : String(m.content);
+              return contentStr.trim() !== '';
+            })
+          );
+          
+          // Build messages based on provider requirements
+          let coreMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+          
+          if (provider === 'groq') {
+            // Groq reasoning models don't support system prompts
+            // Merge system message into first user message
+            if (cleanedMessages.length > 0 && cleanedMessages[0].role === 'user') {
+              const firstUserMsg = cleanedMessages[0];
+              coreMessages = [
+                {
+                  role: 'user',
+                  content: `${systemMessage}\n\n${firstUserMsg.content}`,
+                },
+                ...cleanedMessages.slice(1),
+              ];
+            } else {
+              // No user message yet, add system as first user message
+              coreMessages = [
+                { role: 'user', content: systemMessage },
+                ...cleanedMessages,
+              ];
+            }
+          } else {
+            // Standard behavior for OpenAI and other providers
+            coreMessages = [
+              { role: 'system' as const, content: systemMessage },
+              ...cleanedMessages,
+            ];
+          }
 
           console.log('[Skillmaxing:Stream] Starting stream with web_search tool');
+          console.log('[Skillmaxing:Stream] Raw messages received from side panel:', JSON.stringify(messages, null, 2));
+          
+          // Inspect message properties before cleaning
+          console.log('[Skillmaxing:Stream] Inspecting message properties:');
+          messages.forEach((m: any, i: number) => {
+            console.log(`  Message ${i}:`, {
+              role: m.role,
+              contentLength: m.content?.length,
+              hasReasoningContent: 'reasoning_content' in m,
+              allKeys: Object.keys(m),
+            });
+          });
+          
+          console.log('[Skillmaxing:Stream] Messages for API:', JSON.stringify(coreMessages, null, 2));
+          console.log('[Skillmaxing:Stream] CoreMessages structure:');
+          coreMessages.forEach((m: any, i: number) => {
+            console.log(`  CoreMessage ${i}:`, {
+              role: m.role,
+              contentLength: m.content?.length,
+              hasReasoningContent: 'reasoning_content' in m,
+              allKeys: Object.keys(m),
+            });
+          });
           
           // Stream with tools - define inline
           const result = await streamText({
@@ -224,12 +302,27 @@ chrome.runtime.onConnect.addListener((port) => {
           if (error instanceof Error) {
             errorMessage = error.message;
             // Log additional error properties if available
-            const errorAny = error as Error & { statusCode?: number; response?: unknown; cause?: unknown };
+            const errorAny = error as Error & { 
+              statusCode?: number; 
+              response?: unknown; 
+              cause?: unknown;
+              error?: unknown;
+            };
             if (errorAny.statusCode) console.error('Error statusCode:', errorAny.statusCode);
-            if (errorAny.response) console.error('Error response:', JSON.stringify(errorAny.response, null, 2));
-            if (errorAny.cause) console.error('Error cause:', errorAny.cause);
+            if (errorAny.response) {
+              console.error('Error response:', JSON.stringify(errorAny.response, null, 2));
+            }
+            if (errorAny.cause) {
+              console.error('Error cause:', JSON.stringify(errorAny.cause, null, 2));
+            }
+            if (errorAny.error) {
+              console.error('Error.error:', JSON.stringify(errorAny.error, null, 2));
+            }
 
-            if (errorMessage.includes('401')) {
+            // Specific error handling for Groq API
+            if (errorMessage.includes('reasoning_content') && errorMessage.includes('unsupported')) {
+              errorMessage = 'API Error: This model or provider does not support reasoning_content in messages. Try a different model or API provider.';
+            } else if (errorMessage.includes('401')) {
               errorMessage = 'Invalid API key. Please check your settings and ensure the API key is correct.';
             } else if (errorMessage.includes('404')) {
               errorMessage = `Model not found or invalid endpoint. Check your Base URL and Model settings.`;

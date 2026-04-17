@@ -272,10 +272,16 @@ function App() {
     }
     setMessages(prev => [...prev, assistantMessage])
 
-    // Send start stream message - filter out empty messages
+    // Send start stream message - filter out empty messages and sanitize them
+    const sanitizedMessages = [...messages.filter(m => m.content.trim() !== ''), userMessage]
+      .map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+    
     const allMessages = isInitial 
-      ? [userMessage] 
-      : [...messages.filter(m => m.content.trim() !== ''), userMessage]
+      ? [sanitizedMessages[sanitizedMessages.length - 1]] 
+      : sanitizedMessages
     
     port.postMessage({
       type: 'START_STREAM',
