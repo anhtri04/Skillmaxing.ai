@@ -110,7 +110,7 @@ function App() {
     const normalizedUrl = normalizeUrl(pageUrl)
     
     try {
-      const result = await chrome.storage.session.get([STORAGE_KEYS.CONVERSATIONS_MAP])
+      const result = await chrome.storage.local.get([STORAGE_KEYS.CONVERSATIONS_MAP])
       const conversationsMap = (result[STORAGE_KEYS.CONVERSATIONS_MAP] as Record<string, {
         term: string
         messages: Message[]
@@ -174,7 +174,7 @@ function App() {
     const normalizedUrl = normalizeUrl(pageUrl)
     
     try {
-      const result = await chrome.storage.session.get([STORAGE_KEYS.CONVERSATIONS_MAP])
+      const result = await chrome.storage.local.get([STORAGE_KEYS.CONVERSATIONS_MAP])
       const conversationsMap = (result[STORAGE_KEYS.CONVERSATIONS_MAP] as Record<string, {
         term: string
         messages: Message[]
@@ -183,7 +183,7 @@ function App() {
         timestamp: number
         explainedTerms?: string[]
       }>) || {}
-      
+
       conversationsMap[normalizedUrl] = {
         term: pendingTerm,
         messages: msgs,
@@ -192,8 +192,8 @@ function App() {
         timestamp: Date.now(),
         explainedTerms: Array.from(explainedTerms),
       }
-      
-      await chrome.storage.session.set({
+
+      await chrome.storage.local.set({
         [STORAGE_KEYS.CONVERSATIONS_MAP]: conversationsMap
       })
     } catch (error) {
@@ -205,10 +205,10 @@ function App() {
     if (currentPageUrl) {
       const normalizedUrl = normalizeUrl(currentPageUrl)
       // Remove this URL's conversation from the map
-      chrome.storage.session.get([STORAGE_KEYS.CONVERSATIONS_MAP]).then(result => {
+      chrome.storage.local.get([STORAGE_KEYS.CONVERSATIONS_MAP]).then(result => {
         const conversationsMap = (result[STORAGE_KEYS.CONVERSATIONS_MAP] as Record<string, unknown>) || {}
         delete conversationsMap[normalizedUrl]
-        chrome.storage.session.set({ [STORAGE_KEYS.CONVERSATIONS_MAP]: conversationsMap })
+        chrome.storage.local.set({ [STORAGE_KEYS.CONVERSATIONS_MAP]: conversationsMap })
       })
     }
     setPendingTerm(null)
