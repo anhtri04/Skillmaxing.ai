@@ -104,6 +104,11 @@ async function handleExplainTerm(tabId: number, term: string, tabUrl: string) {
         pageTitle: pageContent?.title || null,
         pageContent: pageContent?.content || null,
         pageUrl: tabUrl,
+        // Metadata for enhanced context (can be used by side panel)
+        pageAuthor: pageContent?.author || null,
+        pageDate: pageContent?.date || null,
+        pageExcerpt: pageContent?.excerpt || null,
+        contentFormat: pageContent?.contentFormat || 'text',
       });
       console.log('[Skillmaxing:Flow] Message sent to side panel');
     }, 500);
@@ -129,12 +134,12 @@ chrome.runtime.onConnect.addListener((port) => {
     
     port.onMessage.addListener(async (message) => {
       if (message.type === 'START_STREAM') {
-        const { messages, term, pageTitle, pageContent } = message;
-        
+        const { messages, term, pageTitle, pageContent, pageAuthor, pageDate } = message;
+
         try {
           // Get settings
           const settings = await getSettings();
-          
+
           if (!settings.apiKey) {
             port.postMessage({
               type: MESSAGE_TYPES.STREAM_ERROR,
@@ -142,9 +147,9 @@ chrome.runtime.onConnect.addListener((port) => {
             });
             return;
           }
-          
-          // Build system message with context
-          const systemMessage = buildSystemMessage(term, pageTitle, pageContent);
+
+          // Build system message with context (now includes metadata)
+          const systemMessage = buildSystemMessage(term, pageTitle, pageContent, pageAuthor, pageDate);
           
           // Detect API provider
           const baseURL = settings.baseURL || 'https://api.openai.com/v1';
@@ -367,19 +372,27 @@ async function getSettings(): Promise<Settings> {
   })
 }
 
-function buildSystemMessage(term: string, pageTitle?: string | null, pageContent?: string | null): string {
+function buildSystemMessage(term: string, pageTitle?: string | null, pageContent?: string | null, pageAuthor?: string | null, pageDate?: string | null): string {
   let context = SYSTEM_PROMPT;
-  
+
   if (pageTitle) {
     context += `\n\nThe user is reading an article titled: "${pageTitle}"`;
+    if (pageAuthor) {
+      context += ` by ${pageAuthor}`;
+    }
+    if (pageDate) {
+      context += ` (published ${pageDate})`;
+    }
   }
-  
+
   if (pageContent) {
-    context += `\n\nArticle context:\n${pageContent.slice(0, 3000)}`;
+    // Markdown is more token-efficient than plain text, so we can use more content
+    // Increased from 3000 to 5000 characters
+    context += `\n\nArticle context:\n${pageContent.slice(0, 5000)}`;
   }
-  
+
   context += `\n\nExplain the term "${term}" in the context of this article.`;
-  
+
   return context;
 }
 

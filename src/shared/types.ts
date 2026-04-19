@@ -15,12 +15,24 @@ export interface Message {
 }
 
 export interface PageContent {
+  // Core content
   title: string
   content: string
+  contentFormat: 'markdown' | 'text'
   url: string
-  extractionMethod?: string
-  usedFallback?: boolean
-  duration?: number
+
+  // Metadata from Readability
+  author?: string
+  date?: string
+  excerpt?: string
+  siteName?: string
+  lang?: string
+
+  // Technical
+  extractionMethod: string
+  usedFallback: boolean
+  duration: number
+  contentLength: number
 }
 
 export interface Settings {
