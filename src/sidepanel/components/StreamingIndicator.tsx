@@ -12,7 +12,7 @@ export function StreamingIndicator({ isLoading }: StreamingIndicatorProps) {
         <div className="w-2 h-2 bg-brand rounded-full animate-typing-bounce" style={{ animationDelay: '150ms' }}></div>
         <div className="w-2 h-2 bg-brand rounded-full animate-typing-bounce" style={{ animationDelay: '300ms' }}></div>
       </div>
-      <span>Thinking...</span>
+      <span className="font-medium">Thinking...</span>
     </div>
   )
 }

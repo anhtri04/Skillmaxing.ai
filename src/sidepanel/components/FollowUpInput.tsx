@@ -50,13 +50,13 @@ export function FollowUpInput({ onSubmit, isLoading, disabled }: FollowUpInputPr
             placeholder="Ask a follow-up question..."
             disabled={isLoading || disabled}
             rows={1}
-            className="w-full px-4 py-3 bg-surface-tertiary border border-[rgba(255,255,255,0.1)] rounded-lg-md focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-secondary disabled:opacity-50 resize-none min-h-[48px] max-h-[150px] text-content-primary placeholder:text-content-tertiary transition-all duration-normal"
+            className="w-full px-4 py-3 bg-surface-tertiary border border-border rounded-xl focus:ring-2 focus:ring-brand focus:border-brand disabled:bg-surface-secondary disabled:opacity-50 resize-none min-h-[48px] max-h-[150px] text-content-primary placeholder:text-content-tertiary transition-all duration-normal"
           />
         </div>
         <button
           type="submit"
           disabled={isLoading || !input.trim() || disabled}
-          className="px-5 py-3 bg-brand text-white rounded-lg-md hover:bg-brand-dark hover:shadow-glow disabled:bg-neutral-gray-dark disabled:cursor-not-allowed disabled:hover:shadow-none transition-all duration-normal whitespace-nowrap font-medium"
+          className="px-5 py-3 bg-brand text-white rounded-xl hover:bg-brand-dark hover:shadow-glow disabled:bg-neutral-light-gray disabled:cursor-not-allowed disabled:hover:shadow-none transition-all duration-normal whitespace-nowrap font-medium"
         >
           Send
         </button>

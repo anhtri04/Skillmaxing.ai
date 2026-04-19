@@ -4,69 +4,194 @@
 
 /* ============================================
    DESIGN TOKENS - Skillmaxing.ai
+   Design System: Dusty Rose Editorial
+   Inspired by Claude's warm literary aesthetic
    Brand Color: #E8486C (Coral Pink)
    ============================================ */
 
 :root {
-  /* Core Brand Colors */
+  /* ============================================
+     CORE BRAND COLORS
+     ============================================ */
   --color-brand: #E8486C;
   --color-brand-light: #FF6B8A;
   --color-brand-dark: #D13A5C;
   --color-brand-glow: rgba(232, 72, 108, 0.4);
   --color-brand-subtle: rgba(232, 72, 108, 0.1);
+  --color-brand-ring: rgba(232, 72, 108, 0.3);
 
-  /* Neutral Colors */
-  --color-black: #0a0a0a;
-  --color-black-soft: #141414;
-  --color-black-elevated: #1a1a1a;
-  --color-black-hover: #252525;
+  /* ============================================
+     BACKGROUND COLORS - Warm with Pink Undertones
+     Paper-like warmth shifted toward rose
+     ============================================ */
+  --color-parchment: #faf7f5;
+  --color-ivory: #fdf8f7;
+  --color-rose-white: #f5eeec;
+  --color-blush-cream: #f0e8e6;
 
-  --color-white: #ffffff;
-  --color-white-soft: #f5f5f5;
-  --color-white-muted: #e0e0e0;
-  --color-gray: #888888;
-  --color-gray-dark: #444444;
+  /* ============================================
+     TEXT COLORS - Warm Grays
+     All grays have subtle pink/warm undertones
+     ============================================ */
+  --color-text-primary: #1a1a1a;
+  --color-text-secondary: #6b6565;
+  --color-text-tertiary: #9a9191;
+  --color-text-muted: #b8b0b0;
 
-  /* Semantic Colors */
-  --color-bg-primary: var(--color-black);
-  --color-bg-secondary: var(--color-black-soft);
-  --color-bg-tertiary: var(--color-black-elevated);
-  --color-bg-hover: var(--color-black-hover);
+  /* ============================================
+     SURFACE COLORS - Light Theme
+     ============================================ */
+  --color-surface-primary: var(--color-parchment);
+  --color-surface-secondary: var(--color-ivory);
+  --color-surface-tertiary: var(--color-rose-white);
+  --color-surface-hover: var(--color-blush-cream);
 
-  --color-text-primary: var(--color-white);
-  --color-text-secondary: var(--color-white-muted);
-  --color-text-tertiary: var(--color-gray);
-
-  --color-accent-primary: var(--color-brand);
-  --color-accent-hover: var(--color-brand-dark);
-
-  --color-border: rgba(255, 255, 255, 0.1);
+  /* ============================================
+     BORDER COLORS - Warm Cream Borders
+     ============================================ */
+  --color-border: #e8e0de;
+  --color-border-light: #f0ebe9;
   --color-border-accent: var(--color-brand);
   --color-border-focus: var(--color-brand);
 
-  /* Effects */
-  --glow-brand: 0 0 20px var(--color-brand-glow);
-  --glow-brand-strong: 0 0 40px var(--color-brand-glow);
+  /* ============================================
+     SEMANTIC COLORS
+     ============================================ */
+  --color-accent-primary: var(--color-brand);
+  --color-accent-hover: var(--color-brand-dark);
+  --color-accent-light: var(--color-brand-light);
 
-  /* Transitions */
+  /* Error - Deep warm red */
+  --color-error: #b53333;
+  --color-error-bg: rgba(181, 51, 51, 0.08);
+
+  /* Success - Muted green */
+  --color-success: #4a7c59;
+
+  /* ============================================
+     TYPOGRAPHY
+     Serif for headlines, Sans for UI
+     ============================================ */
+  --font-serif: Georgia, 'Times New Roman', serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, monospace;
+
+  /* ============================================
+     SHADOW SYSTEM - Ring Shadows (Claude-style)
+     Soft depth without heavy drop shadows
+     ============================================ */
+  --shadow-ring: 0 0 0 1px var(--color-border);
+  --shadow-ring-hover: 0 0 0 1px var(--color-brand-ring);
+  --shadow-ring-focus: 0 0 0 2px var(--color-brand-ring);
+  --shadow-whisper: 0 4px 24px rgba(0, 0, 0, 0.05);
+  --shadow-elevated: 0 2px 8px rgba(0, 0, 0, 0.06), 0 4px 24px rgba(0, 0, 0, 0.04);
+  --shadow-glow: 0 0 20px var(--color-brand-glow);
+  --shadow-glow-strong: 0 0 40px var(--color-brand-glow);
+
+  /* ============================================
+     TRANSITIONS
+     ============================================ */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ============================================
+     SPACING SCALE (8px base)
+     ============================================ */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
 }
 
-/* Base Styles */
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+html {
+  font-size: 16px;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: var(--color-bg-primary);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  background-color: var(--color-surface-primary);
   color: var(--color-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar Styling */
+/* ============================================
+   TYPOGRAPHY UTILITIES
+   ============================================ */
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Headline styles - Serif, weight 500, tight line-height */
+h1, h2, h3, .headline {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--color-text-primary);
+}
+
+h1 {
+  font-size: 1.75rem;
+  line-height: 1.15;
+}
+
+h2 {
+  font-size: 1.375rem;
+}
+
+h3 {
+  font-size: 1.125rem;
+}
+
+/* Body text - Generous line-height for readability */
+p, .body {
+  line-height: 1.6;
+}
+
+/* ============================================
+   TEXT GRADIENT UTILITY
+   ============================================ */
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--color-brand), var(--color-brand-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================
+   GLOW TEXT UTILITY
+   ============================================ */
+
+.glow-text {
+  text-shadow: 0 0 20px var(--color-brand-glow);
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -77,29 +202,55 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: var(--color-gray-dark);
+  background-color: var(--color-border);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-gray);
+  background-color: var(--color-text-muted);
 }
 
-/* Text Gradient Utility */
-.text-gradient {
-  background: linear-gradient(135deg, var(--color-brand), var(--color-brand-light));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
+/* ============================================
+   SELECTION COLOR
+   ============================================ */
 
-/* Glow Text Utility */
-.glow-text {
-  text-shadow: 0 0 20px var(--color-brand-glow);
-}
-
-/* Selection Color */
 ::selection {
   background-color: var(--color-brand-subtle);
-  color: var(--color-brand-light);
+  color: var(--color-brand-dark);
+}
+
+/* ============================================
+   FOCUS STYLES
+   ============================================ */
+
+*:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-ring-focus);
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Ring shadow utilities */
+.ring-border {
+  box-shadow: var(--shadow-ring);
+}
+
+.ring-border-hover:hover {
+  box-shadow: var(--shadow-ring-hover);
+}
+
+/* Whisper shadow for elevated elements */
+.shadow-whisper {
+  box-shadow: var(--shadow-whisper);
+}
+
+/* Border utilities */
+.border-warm {
+  border-color: var(--color-border);
+}
+
+.border-warm-light {
+  border-color: var(--color-border-light);
 }

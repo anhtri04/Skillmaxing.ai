@@ -6,61 +6,94 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Brand Colors
+        // ============================================
+        // BRAND COLORS
+        // ============================================
         brand: {
           DEFAULT: '#E8486C',
           light: '#FF6B8A',
           dark: '#D13A5C',
           glow: 'rgba(232, 72, 108, 0.4)',
           subtle: 'rgba(232, 72, 108, 0.1)',
+          ring: 'rgba(232, 72, 108, 0.3)',
         },
-        // Neutral Colors - Dark Theme
+        // ============================================
+        // BACKGROUND COLORS - Warm with Pink Undertones
+        // ============================================
+        parchment: '#faf7f5',
+        ivory: '#fdf8f7',
+        'rose-white': '#f5eeec',
+        'blush-cream': '#f0e8e6',
+        // ============================================
+        // NEUTRAL COLORS - Warm Grays
+        // ============================================
         neutral: {
-          black: '#0a0a0a',
-          'black-soft': '#141414',
-          'black-elevated': '#1a1a1a',
-          'black-hover': '#252525',
-          white: '#ffffff',
-          'white-soft': '#f5f5f5',
-          'white-muted': '#e0e0e0',
-          gray: '#888888',
-          'gray-dark': '#444444',
+          'soft-black': '#1a1a1a',
+          'warm-gray': '#6b6565',
+          'muted-gray': '#9a9191',
+          'light-gray': '#b8b0b0',
+          'cream': '#e8e0de',
+          'light-cream': '#f0ebe9',
         },
-        // Semantic Colors
+        // ============================================
+        // SEMANTIC COLORS - Light Theme
+        // ============================================
         surface: {
-          primary: '#0a0a0a',
-          secondary: '#141414',
-          tertiary: '#1a1a1a',
-          hover: '#252525',
+          primary: '#faf7f5',      // parchment
+          secondary: '#fdf8f7',    // ivory
+          tertiary: '#f5eeec',     // rose-white
+          hover: '#f0e8e6',        // blush-cream
         },
         content: {
-          primary: '#ffffff',
-          secondary: '#e0e0e0',
-          tertiary: '#888888',
+          primary: '#1a1a1a',      // soft black
+          secondary: '#6b6565',    // warm gray
+          tertiary: '#9a9191',     // muted gray
+          muted: '#b8b0b0',        // light gray
         },
         border: {
-          DEFAULT: 'rgba(255, 255, 255, 0.1)',
+          DEFAULT: '#e8e0de',
+          light: '#f0ebe9',
           accent: '#E8486C',
           focus: '#E8486C',
         },
+        // ============================================
+        // STATE COLORS
+        // ============================================
+        state: {
+          error: '#b53333',
+          'error-bg': 'rgba(181, 51, 51, 0.08)',
+          success: '#4a7c59',
+        },
       },
+      // ============================================
+      // SPACING - 8px base scale
+      // ============================================
       spacing: {
         'xs': '4px',
         'sm': '8px',
-        'md': '16px',
-        'lg': '24px',
-        'xl': '32px',
-        '2xl': '48px',
-        '3xl': '64px',
-      },
-      borderRadius: {
-        'sm': '6px',
         'md': '12px',
         'lg': '16px',
         'xl': '24px',
+        '2xl': '32px',
+        '3xl': '48px',
+        '4xl': '64px',
+      },
+      // ============================================
+      // BORDER RADIUS - Soft, generous rounding
+      // ============================================
+      borderRadius: {
+        'sm': '6px',
+        'md': '8px',
+        'lg': '12px',
+        'xl': '16px',
+        '2xl': '24px',
         'full': '9999px',
       },
+      // ============================================
+      // TYPOGRAPHY - Serif for headlines, Sans for UI
+      // ============================================
       fontFamily: {
+        serif: ['Georgia', 'Times New Roman', 'serif'],
         sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
         mono: ['SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', 'Consolas', 'monospace'],
       },
@@ -73,15 +106,28 @@ export default {
         '2xl': '24px',
         '3xl': '32px',
       },
+      lineHeight: {
+        'tight': '1.2',
+        'normal': '1.6',
+        'relaxed': '1.75',
+      },
+      // ============================================
+      // SHADOWS - Ring shadows (Claude-style)
+      // ============================================
       boxShadow: {
-        'sm': '0 1px 2px rgba(0, 0, 0, 0.3)',
-        'md': '0 4px 12px rgba(0, 0, 0, 0.4)',
-        'lg': '0 8px 24px rgba(0, 0, 0, 0.5)',
-        'elevated': '0 2px 4px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.4)',
+        'ring': '0 0 0 1px #e8e0de',
+        'ring-hover': '0 0 0 1px rgba(232, 72, 108, 0.3)',
+        'ring-focus': '0 0 0 2px rgba(232, 72, 108, 0.3)',
+        'whisper': '0 4px 24px rgba(0, 0, 0, 0.05)',
+        'elevated': '0 2px 8px rgba(0, 0, 0, 0.06), 0 4px 24px rgba(0, 0, 0, 0.04)',
         'glow': '0 0 20px rgba(232, 72, 108, 0.4)',
         'glow-strong': '0 0 40px rgba(232, 72, 108, 0.4)',
       },
+      // ============================================
+      // TRANSITIONS
+      // ============================================
       transitionTimingFunction: {
+        'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
         'bounce-custom': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
       },
       transitionDuration: {
@@ -90,6 +136,9 @@ export default {
         'slow': '350ms',
         'bounce': '500ms',
       },
+      // ============================================
+      // ANIMATIONS
+      // ============================================
       animation: {
         'pulse-glow': 'pulse-glow 2s infinite',
         'typing-bounce': 'typing-bounce 1.4s infinite ease-in-out both',

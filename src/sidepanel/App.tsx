@@ -333,11 +333,11 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-primary flex flex-col">
+    <div className="min-h-screen bg-surface-primary flex flex-col font-sans">
       {/* Header */}
-      <div className="bg-surface-secondary border-b border-[rgba(255,255,255,0.1)] p-4">
+      <div className="bg-surface-secondary border-b border-border p-4 shadow-whisper">
         <div className="max-w-md mx-auto flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gradient">
+          <h1 className="font-serif text-xl font-medium text-gradient">
             Skillmaxing.ai
           </h1>
           {pendingTerm && (
@@ -356,21 +356,21 @@ function App() {
         <div className="max-w-md mx-auto">
           {!pendingTerm ? (
             <div className="text-center py-12">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-gradient-to-br from-brand to-brand-dark shadow-glow flex items-center justify-center">
-                <span className="text-2xl font-bold text-white">S</span>
+              <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-brand to-brand-dark shadow-elevated flex items-center justify-center">
+                <span className="text-2xl font-bold text-white font-serif">S</span>
               </div>
-              <p className="text-content-secondary">
+              <p className="text-content-secondary leading-relaxed">
                 Select any text on a page, right-click, and choose "Explain with Skillmaxing" to get started.
               </p>
             </div>
           ) : (
             <div className="space-y-4">
               {/* Term Header */}
-              <div className="bg-surface-secondary border border-[rgba(255,255,255,0.1)] rounded-lg-md shadow-elevated p-4">
-                <h2 className="text-sm font-semibold text-content-tertiary mb-1">
+              <div className="bg-surface-secondary border border-border rounded-xl shadow-elevated p-4">
+                <h2 className="text-sm font-medium text-content-tertiary mb-1">
                   Explaining:
                 </h2>
-                <p className="text-xl font-bold text-gradient">
+                <p className="font-serif text-xl font-medium text-gradient">
                   "{pendingTerm}"
                 </p>
                 {pageTitle && (
@@ -387,7 +387,7 @@ function App() {
                     {message.role === 'user' ? (
                       <UserMessage content={message.content} />
                     ) : (
-                      <div className="bg-surface-secondary border border-[rgba(255,255,255,0.1)] mr-8 p-4 rounded-lg-md shadow-elevated">
+                      <div className="bg-surface-secondary border border-border mr-8 p-4 rounded-xl shadow-elevated">
                         <AssistantMessage content={message.content} />
                       </div>
                     )}
@@ -397,13 +397,13 @@ function App() {
                 <StreamingIndicator isLoading={isLoading} />
 
                 {error && (
-                  <div className="bg-brand-subtle border border-brand p-4 rounded-lg-md">
-                    <p className="text-brand-light text-sm">
+                  <div className="bg-state-error-bg border border-state-error rounded-lg p-4">
+                    <p className="text-state-error text-sm">
                       Error: {error.message}
                     </p>
                     <button
                       onClick={() => chrome.runtime.openOptionsPage()}
-                      className="text-brand hover:text-brand-light hover:underline text-sm mt-2 transition-colors duration-fast"
+                      className="text-state-error hover:underline text-sm mt-2 transition-colors duration-fast"
                     >
                       Configure API Key →
                     </button>
@@ -419,7 +419,7 @@ function App() {
 
       {/* Input Area */}
       {pendingTerm && (
-        <div className="bg-surface-secondary border-t border-[rgba(255,255,255,0.1)] p-4">
+        <div className="bg-surface-secondary border-t border-border p-4 shadow-whisper">
           <div className="max-w-md mx-auto">
             <FollowUpInput
               onSubmit={handleFollowUp}
