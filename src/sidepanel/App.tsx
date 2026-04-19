@@ -20,6 +20,10 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  const [activeToolCall, setActiveToolCall] = useState<{
+    toolName: string
+    input?: Record<string, unknown>
+  } | null>(null)
   const [hasExplained, setHasExplained] = useState(false)
   const [currentPageUrl, setCurrentPageUrl] = useState<string | null>(null)
   const portRef = useRef<chrome.runtime.Port | null>(null)
@@ -292,8 +296,18 @@ function App() {
     })
 
     // Listen for stream messages
-    port.onMessage.addListener((message: { type: string; chunk?: string; error?: string }) => {
+    port.onMessage.addListener((message: { 
+      type: string; 
+      chunk?: string; 
+      error?: string;
+      toolName?: string;
+      input?: Record<string, unknown>;
+    }) => {
       if (message.type === MESSAGE_TYPES.STREAM_CHUNK && message.chunk) {
+        // Clear tool call when text starts arriving
+        if (activeToolCall) {
+          setActiveToolCall(null);
+        }
         setMessages(prev => {
           const lastMessage = prev[prev.length - 1]
           if (lastMessage.role === 'assistant') {
@@ -304,13 +318,24 @@ function App() {
           }
           return prev
         })
+      } else if (message.type === MESSAGE_TYPES.TOOL_CALL_START) {
+        // Show tool calling indicator
+        setActiveToolCall({
+          toolName: message.toolName || 'unknown',
+          input: message.input,
+        });
+      } else if (message.type === MESSAGE_TYPES.TOOL_CALL_END) {
+        // Tool call finished - keep showing briefly or clear when text arrives
+        // Note: We don't clear immediately here; STREAM_CHUNK will clear it
       } else if (message.type === MESSAGE_TYPES.STREAM_DONE) {
         setIsLoading(false)
+        setActiveToolCall(null)
         port.disconnect()
         portRef.current = null
       } else if (message.type === MESSAGE_TYPES.STREAM_ERROR) {
         setError(new Error(message.error || 'Stream error'))
         setIsLoading(false)
+        setActiveToolCall(null)
         port.disconnect()
         portRef.current = null
       }
@@ -394,7 +419,7 @@ function App() {
                   </div>
                 ))}
 
-                <StreamingIndicator isLoading={isLoading} />
+                <StreamingIndicator isLoading={isLoading} activeToolCall={activeToolCall} />
 
                 {error && (
                   <div className="bg-state-error-bg border border-state-error rounded-lg p-4">

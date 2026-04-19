@@ -5,6 +5,8 @@ export interface ExtensionMessage {
   term?: string
   pageContent?: string
   pageTitle?: string
+  toolName?: string
+  input?: Record<string, unknown>
 }
 
 export interface Message {

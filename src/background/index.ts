@@ -262,6 +262,21 @@ chrome.runtime.onConnect.addListener((port) => {
             },
             toolChoice: 'auto',
             stopWhen: stepCountIs(5), // Allow multi-step: tool call + response generation
+            experimental_onToolCallStart: ({ toolCall }) => {
+              console.log(`[Skillmaxing:Tool] Starting ${toolCall.toolName}`, toolCall.input);
+              port.postMessage({
+                type: MESSAGE_TYPES.TOOL_CALL_START,
+                toolName: toolCall.toolName,
+                input: toolCall.input,
+              });
+            },
+            experimental_onToolCallFinish: ({ toolCall }) => {
+              console.log(`[Skillmaxing:Tool] Finished ${toolCall.toolName}`);
+              port.postMessage({
+                type: MESSAGE_TYPES.TOOL_CALL_END,
+                toolName: toolCall.toolName,
+              });
+            },
             onStepFinish: ({ stepNumber, text, toolCalls, toolResults, finishReason }) => {
               console.log(`[Skillmaxing:Stream] Step ${stepNumber} finished (${finishReason})`);
               console.log(`[Skillmaxing:Stream] Step text length: ${text?.length || 0}`);
