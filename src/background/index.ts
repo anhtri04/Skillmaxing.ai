@@ -261,7 +261,7 @@ chrome.runtime.onConnect.addListener((port) => {
               },
             },
             toolChoice: 'auto',
-            stopWhen: stepCountIs(5), // Allow multi-step: tool call + response generation
+            stopWhen: stepCountIs(10), // Allow multi-step: tool call + response generation
             experimental_onToolCallStart: ({ toolCall }) => {
               console.log(`[Skillmaxing:Tool] Starting ${toolCall.toolName}`, toolCall.input);
               port.postMessage({
